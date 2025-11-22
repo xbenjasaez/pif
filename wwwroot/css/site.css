@@ -43,6 +43,34 @@ body {
     transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+.card,
+.card .card-body,
+.card .card-header,
+.bg-white,
+.bg-light {
+    background-color: var(--surface-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+.metric-card {
+    background-color: var(--surface-bg) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 0 1.5rem 0 var(--shadow-color);
+}
+
+[data-theme="dark"] .card,
+[data-theme="dark"] .card .card-body,
+[data-theme="dark"] .card .card-header,
+[data-theme="dark"] .bg-white,
+[data-theme="dark"] .bg-light,
+[data-theme="dark"] .metric-card {
+    background-color: var(--surface-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+    box-shadow: 0 0 1.5rem 0 var(--shadow-color);
+}
+
 /* Navbar personalizada */
 .navbar-brand {
     font-weight: 800;

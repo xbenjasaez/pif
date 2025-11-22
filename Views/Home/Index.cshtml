@@ -228,6 +228,9 @@
         gap: 1rem;
         border-radius: 1rem;
         padding: 1rem 1.5rem;
+        background-color: var(--surface-bg);
+        border: 1px solid var(--border-color);
+        color: var(--text-color);
     }
     .metric-icon {
         width: 48px;
@@ -238,7 +241,7 @@
         font-size: 1.3rem;
     }
     .quick-action {
-        border: 1px solid #e1e5f2;
+        border: 1px solid var(--border-color);
         border-radius: 1rem;
         padding: 1.25rem;
         text-align: center;
@@ -251,9 +254,22 @@
         transition: all .2s ease;
     }
     .quick-action:hover {
-        border-color: #4b6bff;
-        color: #4b6bff;
-        box-shadow: 0 0.5rem 1rem rgba(75,107,255,.15);
+        border-color: var(--primary-color);
+        color: var(--primary-color);
+        box-shadow: 0 0.5rem 1rem rgba(75, 107, 255, .18);
+    }
+    .list-group-item {
+        background-color: var(--surface-bg);
+        border-color: var(--border-color);
+        color: var(--text-color);
+    }
+    .card-header,
+    .card-body {
+        background-color: var(--surface-bg);
+        color: var(--text-color);
+    }
+    .text-muted {
+        color: var(--muted-text) !important;
     }
 </style>
 
