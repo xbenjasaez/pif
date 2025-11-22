@@ -2,7 +2,8 @@ param(
     [string]$XamppPath = "C:\xampp",
     [int]$MysqlPort = 3306,
     [switch]$SkipApache,
-    [switch]$StopServicesOnExit
+    [switch]$StopServicesOnExit,
+    [switch]$SkipPublish
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,6 +82,23 @@ try {
     Write-Step "=== Biblioteca Virtual - Lanzador ===" ([ConsoleColor]::White)
     Throw-IfMissing -path $XamppPath -friendly "XAMPP ($XamppPath)"
     Throw-IfMissing -path $appExe -friendly "Ejecutable publicado ($appExe)"
+
+    if (-not $SkipPublish) {
+        Write-Step "Ejecutando dotnet publish (Release / win-x64)..." ([ConsoleColor]::Yellow)
+        $publishArgs = @(
+            "publish",
+            "`"$repoRoot`"",
+            "-c", "Release",
+            "-r", "win-x64",
+            "--self-contained", "true",
+            "/p:PublishSingleFile=true",
+            "/p:IncludeNativeLibrariesForSelfExtract=true"
+        )
+        $publishProcess = Start-Process -FilePath "dotnet" -ArgumentList $publishArgs -NoNewWindow -Wait -PassThru
+        if ($publishProcess.ExitCode -ne 0) {
+            throw "dotnet publish falló con código $($publishProcess.ExitCode). Revisa la salida."
+        }
+    }
 
     # Iniciar MySQL (requerido)
     if (-not (Start-XamppScript -scriptName "mysql_start.bat")) {

@@ -32,7 +32,9 @@ Parámetros disponibles:
 
 1. Publica la app cada vez que necesites una nueva versión.
 2. Crea un acceso directo al archivo `scripts\IniciarBiblioteca.bat` y colócalo donde prefieras.
-3. Doble clic y el lanzador se encarga de levantar XAMPP, esperar los puertos y ejecutar la app.
+3. Doble clic y el lanzador publicará automáticamente la app (Release win-x64), levantará XAMPP, esperará los puertos y ejecutará la app.
+
+> Si necesitas saltarte la publicación (por ejemplo para debug), ejecuta `LaunchBiblioteca.ps1` con `-SkipPublish` o añade el flag `-SkipPublish` al `IniciarBiblioteca.bat`.
 
 > Consejo: ejecuta el batch con `-SkipApache` si solo necesitas MySQL. Si quieres que al cerrar la app también se apaguen los servicios, añade `-StopServicesOnExit`.
 

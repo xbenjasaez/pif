@@ -10,10 +10,47 @@
     </h1>
 </div>
 
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('registroCirculacionForm');
+            const fechaInicio = document.getElementById('fechaInicio');
+            const fechaFin = document.getElementById('fechaFin');
+            const hiddenRange = document.getElementById('rangoValue');
+            const rangeLabel = document.getElementById('rangeSelectedLabel');
+
+            if (!form) return;
+
+            document.querySelectorAll('.quick-range').forEach(button => {
+                button.addEventListener('click', function (event) {
+                    event.preventDefault();
+                    document.querySelectorAll('.quick-range').forEach(btn => btn.classList.remove('active'));
+                    button.classList.add('active');
+
+                    const start = button.getAttribute('data-start');
+                    const end = button.getAttribute('data-end');
+                    if (fechaInicio && start) fechaInicio.value = start;
+                    if (fechaFin && end) fechaFin.value = end;
+
+                    if (rangeLabel) {
+                        rangeLabel.textContent = button.textContent.trim();
+                    }
+
+                    if (hiddenRange) {
+                        hiddenRange.value = button.getAttribute('data-range');
+                    }
+
+                    form.submit();
+                });
+            });
+        });
+    </script>
+}
+ 
 <!-- Filtros y Búsqueda -->
 <div class="card shadow mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" id="registroCirculacionForm" class="row g-3 align-items-end">
             <div class="col-md-4">
                 <label for="searchString" class="form-label">Buscar</label>
                 <input type="text" class="form-control" id="searchString" name="searchString"
@@ -37,23 +74,40 @@
                 <label for="fechaFin" class="form-label">Hasta</label>
                 <input type="date" class="form-control" id="fechaFin" name="fechaFin" value="@Model.FechaFin.ToString("yyyy-MM-dd")">
             </div>
+            @{
+                var hoy = DateTime.Today;
+                var inicioMesActual = new DateTime(hoy.Year, hoy.Month, 1);
+                var rangosDict = new Dictionary<string, (string Label, string Inicio, string Fin)>
+                {
+                    { "Hoy", ("Hoy", hoy.ToString("yyyy-MM-dd"), hoy.ToString("yyyy-MM-dd")) },
+                    { "Semana", ("Últimos 7 días", hoy.AddDays(-6).ToString("yyyy-MM-dd"), hoy.ToString("yyyy-MM-dd")) },
+                    { "Mes", ("Últimos 30 días", hoy.AddDays(-29).ToString("yyyy-MM-dd"), hoy.ToString("yyyy-MM-dd")) },
+                    { "MesActual", ("Mes actual", inicioMesActual.ToString("yyyy-MM-dd"), inicioMesActual.AddMonths(1).AddDays(-1).ToString("yyyy-MM-dd")) }
+                };
+                var rangoSeleccionadoTexto = rangosDict.ContainsKey(Model.RangoSeleccionado)
+                    ? rangosDict[Model.RangoSeleccionado].Label
+                    : "Hoy";
+            }
+            <input type="hidden" id="rangoValue" name="rango" value="@Model.RangoSeleccionado">
             <div class="col-md-12 d-flex flex-wrap justify-content-between align-items-center">
                 <div class="btn-group mb-2" role="group">
                     @{
-                        var rangos = new Dictionary<string, string>
-                        {
-                            { "Hoy", "Hoy" },
-                            { "Semana", "Últimos 7 días" },
-                            { "Mes", "Últimos 30 días" },
-                            { "MesActual", "Mes actual" }
-                        };
-
-                        foreach (var item in rangos)
+                        foreach (var item in rangosDict)
                         {
                             var active = Model.RangoSeleccionado == item.Key ? "active" : string.Empty;
-                            <button type="submit" name="rango" value="@item.Key" class="btn btn-outline-primary @active">@item.Value</button>
+                            <button type="button"
+                                    data-range="@item.Key"
+                                    data-start="@item.Value.Inicio"
+                                    data-end="@item.Value.Fin"
+                                    class="btn btn-outline-primary @active quick-range">
+                                @item.Value.Label
+                            </button>
                         }
                     }
+                </div>
+                <div class="text-muted mb-2">
+                    <span class="me-1">Rango aplicado:</span>
+                    <strong id="rangeSelectedLabel">@rangoSeleccionadoTexto</strong>
                 </div>
                 <div class="d-flex gap-2 mb-2">
                     <button type="submit" class="btn btn-primary">

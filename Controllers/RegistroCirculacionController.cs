@@ -25,36 +25,51 @@ namespace BibliotecaVirtualWeb.Controllers
                 .Include(p => p.Usuario)
                 .AsQueryable();
 
-            var rangoSeleccionado = string.IsNullOrEmpty(rango) ? "Hoy" : rango;
-            var inicio = fechaInicio?.Date;
-            var fin = fechaFin?.Date;
+            var rangoSeleccionado = string.IsNullOrEmpty(rango) ? string.Empty : rango;
+            var inicioManual = fechaInicio?.Date;
+            var finManual = fechaFin?.Date;
+            DateTime inicioFiltro;
+            DateTime finFiltro;
 
-            if (!inicio.HasValue || !fin.HasValue)
+            if (!string.IsNullOrEmpty(rangoSeleccionado))
             {
                 switch (rangoSeleccionado)
                 {
                     case "Semana":
-                        fin = DateTime.Today;
-                        inicio = DateTime.Today.AddDays(-6);
+                        finFiltro = DateTime.Today;
+                        inicioFiltro = DateTime.Today.AddDays(-6);
                         break;
                     case "Mes":
-                        fin = DateTime.Today;
-                        inicio = DateTime.Today.AddDays(-29);
+                        finFiltro = DateTime.Today;
+                        inicioFiltro = DateTime.Today.AddDays(-29);
                         break;
                     case "MesActual":
-                        inicio = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
-                        fin = inicio.Value.AddMonths(1).AddDays(-1);
+                        inicioFiltro = new DateTime(DateTime.Today.Year, DateTime.Today.Month, 1);
+                        finFiltro = inicioFiltro.AddMonths(1).AddDays(-1);
                         break;
                     default:
-                        inicio = DateTime.Today;
-                        fin = DateTime.Today;
+                        inicioFiltro = DateTime.Today;
+                        finFiltro = DateTime.Today;
                         rangoSeleccionado = "Hoy";
                         break;
                 }
             }
+            else if (inicioManual.HasValue && finManual.HasValue)
+            {
+                inicioFiltro = inicioManual.Value.Date;
+                finFiltro = finManual.Value.Date;
+            }
+            else
+            {
+                inicioFiltro = DateTime.Today;
+                finFiltro = DateTime.Today;
+                rangoSeleccionado = "Hoy";
+            }
 
-            var fechaInicioFiltro = inicio!.Value.Date;
-            var fechaFinFiltro = fin!.Value.Date;
+            rangoSeleccionado = string.IsNullOrEmpty(rangoSeleccionado) ? "Hoy" : rangoSeleccionado;
+
+            var fechaInicioFiltro = inicioFiltro;
+            var fechaFinFiltro = finFiltro;
             var fechaFinExclusiva = fechaFinFiltro.AddDays(1);
 
             prestamos = prestamos.Where(p => p.FechaPrestamo >= fechaInicioFiltro && p.FechaPrestamo < fechaFinExclusiva);
