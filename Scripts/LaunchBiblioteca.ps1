@@ -1,0 +1,126 @@
+param(
+    [string]$XamppPath = "C:\xampp",
+    [int]$MysqlPort = 3306,
+    [switch]$SkipApache,
+    [switch]$StopServicesOnExit
+)
+
+$ErrorActionPreference = 'Stop'
+
+function Write-Step($message, [ConsoleColor]$color = [ConsoleColor]::Cyan) {
+    $timestamp = (Get-Date).ToString("HH:mm:ss")
+    $previousColor = $Host.UI.RawUI.ForegroundColor
+    $Host.UI.RawUI.ForegroundColor = $color
+    Write-Host "[$timestamp] $message"
+    $Host.UI.RawUI.ForegroundColor = $previousColor
+}
+
+function Throw-IfMissing([string]$path, [string]$friendly = "") {
+    if (-not (Test-Path $path)) {
+        $label = if ($friendly) { $friendly } else { $path }
+        throw "No se encontró: $label"
+    }
+}
+
+function Start-XamppScript([string]$scriptName) {
+    $fullPath = Join-Path $XamppPath $scriptName
+    if (-not (Test-Path $fullPath)) {
+        return $false
+    }
+
+    Write-Step "Ejecutando $scriptName..." ([ConsoleColor]::Yellow)
+    $startInfo = @{
+        FilePath        = $fullPath
+        WorkingDirectory= $XamppPath
+        WindowStyle     = 'Hidden'
+        PassThru        = $false
+    }
+    Start-Process @startInfo
+    return $true
+}
+
+function Wait-ForPort([int]$port, [int]$timeoutSeconds = 45) {
+    Write-Step "Esperando a que el puerto $port quede disponible..." ([ConsoleColor]::DarkCyan)
+    $deadline = (Get-Date).AddSeconds($timeoutSeconds)
+
+    while ((Get-Date) -lt $deadline) {
+        try {
+            $client = New-Object System.Net.Sockets.TcpClient
+            $async = $client.BeginConnect('127.0.0.1', $port, $null, $null)
+            if ($async.AsyncWaitHandle.WaitOne(1000)) {
+                $client.EndConnect($async)
+                $client.Dispose()
+                Write-Step "Puerto $port disponible." ([ConsoleColor]::Green)
+                return $true
+            }
+            $client.Dispose()
+        } catch {
+            Start-Sleep -Milliseconds 500
+        }
+    }
+
+    Write-Step "El puerto $port no respondió antes del tiempo límite." ([ConsoleColor]::Red)
+    return $false
+}
+
+function Stop-XamppScript([string]$scriptName) {
+    $fullPath = Join-Path $XamppPath $scriptName
+    if (-not (Test-Path $fullPath)) {
+        return
+    }
+    Write-Step "Deteniendo $scriptName..." ([ConsoleColor]::DarkYellow)
+    Start-Process -FilePath $fullPath -WorkingDirectory $XamppPath -WindowStyle Hidden | Out-Null
+}
+
+# --- Configuración de rutas ---
+$repoRoot   = Resolve-Path (Join-Path $PSScriptRoot "..")
+$publishDir = Join-Path $repoRoot "bin\Release\net6.0\win-x64\publish"
+$appExe     = Join-Path $publishDir "BibliotecaVirtualWeb.exe"
+
+try {
+    Write-Step "=== Biblioteca Virtual - Lanzador ===" ([ConsoleColor]::White)
+    Throw-IfMissing -path $XamppPath -friendly "XAMPP ($XamppPath)"
+    Throw-IfMissing -path $appExe -friendly "Ejecutable publicado ($appExe)"
+
+    # Iniciar MySQL (requerido)
+    if (-not (Start-XamppScript -scriptName "mysql_start.bat")) {
+        if (-not (Start-XamppScript -scriptName "xampp_start.exe")) {
+            throw "No se pudo iniciar MySQL. Revisa la instalación de XAMPP."
+        }
+    }
+
+    # Iniciar Apache si no se indicó lo contrario
+    if (-not $SkipApache) {
+        if (-not (Start-XamppScript -scriptName "apache_start.bat")) {
+            Write-Step "No se encontró apache_start.bat. Continuando sin Apache..." ([ConsoleColor]::DarkYellow)
+        }
+    } else {
+        Write-Step "SkipApache activo: no se intentará iniciar Apache." ([ConsoleColor]::DarkGray)
+    }
+
+    # Esperar puerto MySQL
+    if (-not (Wait-ForPort -port $MysqlPort -timeoutSeconds 60)) {
+        Write-Step "Advertencia: MySQL podría no estar disponible aún." ([ConsoleColor]::Red)
+    }
+
+    # Lanzar aplicación
+    Write-Step "Iniciando BibliotecaVirtualWeb..." ([ConsoleColor]::White)
+    $appProcess = Start-Process -FilePath $appExe -WorkingDirectory $publishDir -PassThru
+
+    if ($StopServicesOnExit) {
+        Write-Step "Esperando a que la aplicación cierre para detener XAMPP..." ([ConsoleColor]::DarkGray)
+        Wait-Process -Id $appProcess.Id
+        Stop-XamppScript -scriptName "mysql_stop.bat"
+        if (-not $SkipApache) {
+            Stop-XamppScript -scriptName "apache_stop.bat"
+        }
+        Write-Step "Servicios detenidos. Hasta luego!" ([ConsoleColor]::Green)
+    } else {
+        Write-Step "Aplicación iniciada correctamente. Puedes cerrar esta ventana." ([ConsoleColor]::Green)
+    }
+}
+catch {
+    Write-Step "ERROR: $($_.Exception.Message)" ([ConsoleColor]::Red)
+    exit 1
+}
+

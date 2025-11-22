@@ -1,0 +1,24 @@
+# Build output
+bin/
+obj/
+
+# User secrets / local settings
+appsettings.Development.json
+
+# Publish artifacts
+publish/
+
+# Backups
+backups/
+
+# VS / Rider / VSCode
+.vs/
+.vscode/
+*.user
+*.suo
+*.swp
+*.DS_Store
+
+# Logs
+*.log
+

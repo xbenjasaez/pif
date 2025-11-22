@@ -201,10 +201,19 @@ body {
     color: var(--text-color);
 }
 
-.form-control:focus, .form-select:focus {
+.form-control:focus, .form-select:focus, .form-control:active {
     border-color: var(--primary-color);
     box-shadow: 0 0 0 0.2rem rgba(78, 115, 223, 0.25);
     background-color: var(--surface-bg);
+    color: var(--text-color);
+}
+[data-theme="dark"] .form-control:focus,
+[data-theme="dark"] .form-control:active,
+[data-theme="dark"] .form-select:focus {
+    background-color: #0f172a;
+    border-color: rgba(59, 130, 246, 0.9);
+    color: #e2e8f0;
+    box-shadow: 0 0 0 0.2rem rgba(59, 130, 246, 0.35);
 }
 
 .form-label {
