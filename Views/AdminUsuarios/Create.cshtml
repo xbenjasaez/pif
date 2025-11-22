@@ -1,0 +1,58 @@
+@model BibliotecaVirtualWeb.Models.CreateStaffUserViewModel
+@{
+    ViewData["Title"] = "Crear usuario interno";
+}
+
+<div class="mb-4">
+    <h1 class="h3 text-primary mb-1"><i class="fas fa-user-plus me-2"></i>Nuevo usuario interno</h1>
+    <p class="text-muted mb-0">Solo administradores pueden crear cuentas con acceso al sistema</p>
+</div>
+
+<div class="card shadow-sm">
+    <div class="card-body">
+        <form asp-action="Create" method="post" class="row g-3">
+            <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+            <div class="col-md-6">
+                <label asp-for="NombreCompleto" class="form-label fw-semibold"></label>
+                <input asp-for="NombreCompleto" class="form-control" placeholder="Nombre y apellido" />
+                <span asp-validation-for="NombreCompleto" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Email" class="form-label fw-semibold"></label>
+                <input asp-for="Email" class="form-control" placeholder="usuario@colegio.cl" />
+                <span asp-validation-for="Email" class="text-danger"></span>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="Password" class="form-label fw-semibold"></label>
+                <input asp-for="Password" class="form-control" />
+                <span asp-validation-for="Password" class="text-danger"></span>
+                <div class="form-text">Se podrá cambiar al iniciar sesión.</div>
+            </div>
+
+            <div class="col-md-6">
+                <label asp-for="RolSeleccionado" class="form-label fw-semibold"></label>
+                <select asp-for="RolSeleccionado" class="form-select" asp-items="Model.RolesDisponibles">
+                    <option value="">Seleccione un rol</option>
+                </select>
+                <span asp-validation-for="RolSeleccionado" class="text-danger"></span>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a asp-action="Index" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Crear usuario
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{ await Html.RenderPartialAsync("_ValidationScriptsPartial"); }
+}
+

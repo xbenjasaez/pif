@@ -1,0 +1,414 @@
+@model BibliotecaVirtualWeb.Models.DevolucionRapidaViewModel
+@using System.Text.Json
+
+@{
+    ViewData["Title"] = "Devolución rápida";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1 text-warning"><i class="fas fa-barcode me-2"></i>Devolución rápida</h1>
+        <p class="text-muted mb-0">
+            Escanea el código de barras del ejemplar y el sistema registrará la devolución al instante.
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-list me-1"></i>Ver préstamos
+        </a>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Nuevo préstamo
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0"><i class="fas fa-scanner-gun me-2"></i>Escanea un ejemplar</h5>
+                    <span class="badge bg-light text-dark" id="contadorDevoluciones">
+                        @($"{Model.DevolucionesHoy} devolución{(Model.DevolucionesHoy == 1 ? string.Empty : "es")} hoy")
+                    </span>
+                </div>
+
+                @Html.AntiForgeryToken()
+
+                <label for="codigoDevolucionInput" class="form-label fw-semibold">Código de barras</label>
+                <div class="input-group input-group-lg">
+                    <span class="input-group-text bg-white"><i class="fas fa-barcode"></i></span>
+                    <input type="text"
+                           class="form-control form-control-lg"
+                           id="codigoDevolucionInput"
+                           placeholder="Apunta el escáner al código..."
+                           autocomplete="off"
+                           autofocus />
+                </div>
+                <div class="form-text">
+                    El lector funciona como un teclado: al terminar envía Enter automáticamente.
+                </div>
+
+                <div class="alert alert-info mt-4" id="estadoInicial">
+                    <i class="fas fa-info-circle me-2"></i>
+                    Escanea un ejemplar para comenzar. También puedes presionar <strong>Ctrl + Shift + D</strong> desde cualquier pantalla para abrir este módulo.
+                </div>
+
+                <div class="alert alert-success mt-4 d-none" id="resultadoExito"></div>
+                <div class="alert alert-danger mt-4 d-none" id="resultadoError"></div>
+
+                <div class="border rounded p-3 mt-4 d-none" id="detalleDevolucion">
+                    <h6 class="text-success"><i class="fas fa-check-circle me-2"></i>Última devolución</h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li><strong>Libro:</strong> <span id="detalleLibro"></span></li>
+                        <li><strong>Código:</strong> <span id="detalleCodigo"></span></li>
+                        <li><strong>Usuario:</strong> <span id="detalleUsuario"></span></li>
+                        <li><strong>Préstamo:</strong> <span id="detalleFechas"></span></li>
+                        <li id="detalleRetraso" class="mt-1"></li>
+                    </ul>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="fw-semibold text-muted mb-2"><i class="fas fa-bolt me-2"></i>Tips de velocidad</h6>
+                    <ul class="small text-muted ps-3 mb-0">
+                        <li>Deja el cursor en el campo y sólo escanea.</li>
+                        <li>Si el lector no envía Enter, presiona la tecla manualmente.</li>
+                        <li>Si falla un código, revisa que el ejemplar tenga un préstamo activo.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow mt-4">
+            <div class="card-body">
+                <h5 class="card-title mb-3"><i class="fas fa-search me-2"></i>Búsqueda manual</h5>
+                <p class="text-muted small">Encuentra préstamos activos ingresando RUT, nombre del usuario o título del libro.</p>
+                <input type="text" class="form-control" id="buscadorPrestamoManual" placeholder="Ej: 12345678-9 o Principito" autocomplete="off" />
+                <div class="form-text">Selecciona un resultado para registrar la devolución sin escáner.</div>
+                <div id="sugerenciasPrestamos" class="list-group shadow-sm d-none mt-3"></div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card shadow h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i>Devoluciones recientes</h5>
+                <span class="text-muted small">Sólo de esta sesión</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Hora</th>
+                                <th>Libro</th>
+                                <th>Usuario</th>
+                                <th>Código</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialDevoluciones">
+                            <tr id="historialVacio">
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                                    <div>Aún no registras devoluciones en esta sesión.</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow mt-4">
+            <div class="card-body">
+                <h6 class="fw-semibold mb-2"><i class="fas fa-keyboard me-2"></i>Atajos útiles</h6>
+                <div class="row text-muted small">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Ctrl + Shift + D</strong></p>
+                        <p class="mb-3">Abrir este módulo desde cualquier pantalla.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Enter</strong></p>
+                        <p class="mb-0">Forzar la devolución si el lector no envía la tecla automáticamente.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const input = document.getElementById('codigoDevolucionInput');
+            const resultadoExito = document.getElementById('resultadoExito');
+            const resultadoError = document.getElementById('resultadoError');
+            const detalle = document.getElementById('detalleDevolucion');
+            const detalleLibro = document.getElementById('detalleLibro');
+            const detalleCodigo = document.getElementById('detalleCodigo');
+            const detalleUsuario = document.getElementById('detalleUsuario');
+            const detalleFechas = document.getElementById('detalleFechas');
+            const detalleRetraso = document.getElementById('detalleRetraso');
+            const estadoInicial = document.getElementById('estadoInicial');
+            const historialBody = document.getElementById('historialDevoluciones');
+            const historialVacio = document.getElementById('historialVacio');
+            const contadorDevoluciones = document.getElementById('contadorDevoluciones');
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenInput ? tokenInput.value : '';
+            const buscadorPrestamoManual = document.getElementById('buscadorPrestamoManual');
+            const sugerenciasPrestamos = document.getElementById('sugerenciasPrestamos');
+
+            const MAX_HISTORIAL = 5;
+            const historialInicial = @Html.Raw(JsonSerializer.Serialize(Model?.DevolucionesRecientes ?? new List<BibliotecaVirtualWeb.Models.DevolucionRecienteViewModel>()));
+            let historial = Array.isArray(historialInicial)
+                ? historialInicial.map(item => ({
+                    hora: item.fechaDevolucion ? new Date(item.fechaDevolucion) : new Date(),
+                    libro: item.libro || 'Sin título',
+                    usuario: item.usuario || 'Usuario',
+                    codigo: item.codigoBarras || '',
+                    diasRetraso: item.diasRetraso || 0
+                }))
+                : [];
+            let buscarTimeout;
+            let buscarPrestamoTimeout;
+            let devolucionesHoy = @Model.DevolucionesHoy;
+
+            function resetInput(clear = true) {
+                if (clear) {
+                    input.value = '';
+                }
+                input.focus();
+                input.select();
+            }
+
+            function mostrarMensaje(elemento, mensaje) {
+                elemento.textContent = mensaje;
+                elemento.classList.remove('d-none');
+            }
+
+            function ocultarMensajes() {
+                estadoInicial.classList.add('d-none');
+                resultadoExito.classList.add('d-none');
+                resultadoError.classList.add('d-none');
+            }
+
+            function actualizarHistorial(respuesta) {
+                historial.unshift({
+                    hora: new Date(),
+                    libro: respuesta.libro?.titulo ?? 'Sin título',
+                    usuario: respuesta.usuario?.nombre ?? 'Usuario',
+                    codigo: respuesta.codigoBarras,
+                    diasRetraso: respuesta.diasRetraso
+                });
+
+                if (historial.length > MAX_HISTORIAL) {
+                    historial = historial.slice(0, MAX_HISTORIAL);
+                }
+
+                renderHistorial();
+                incrementarDevolucionesHoy();
+            }
+
+            function renderHistorial() {
+                if (historial.length === 0) {
+                    historialVacio.classList.remove('d-none');
+                    return;
+                }
+                historialVacio.classList.add('d-none');
+                historialBody.innerHTML = historial.map(item => `
+                    <tr>
+                        <td>${(item.hora instanceof Date ? item.hora : new Date(item.hora)).toLocaleTimeString()}</td>
+                        <td>
+                            <strong>${item.libro}</strong>
+                        </td>
+                        <td>${item.usuario}</td>
+                        <td><span class="badge bg-light text-dark">${item.codigo}</span></td>
+                        <td>
+                            ${item.diasRetraso > 0
+                                ? `<span class="badge bg-danger"><i class="fas fa-clock me-1"></i>${item.diasRetraso} día(s) atraso</span>`
+                                : '<span class="badge bg-success"><i class="fas fa-check me-1"></i>Al día</span>'}
+                        </td>
+                    </tr>
+                `).join('');
+            }
+
+            function actualizarContadorDevoluciones() {
+                contadorDevoluciones.textContent = `${devolucionesHoy} devolución${devolucionesHoy === 1 ? '' : 'es'} hoy`;
+            }
+
+            function incrementarDevolucionesHoy() {
+                devolucionesHoy++;
+                actualizarContadorDevoluciones();
+            }
+
+            function mostrarDetalle(data) {
+                detalleLibro.textContent = data.libro?.titulo ?? 'Sin título';
+                detalleCodigo.textContent = data.codigoBarras;
+                detalleUsuario.textContent = `${data.usuario?.nombre ?? 'Usuario'} (${data.usuario?.rut ?? 'Sin RUT'})`;
+
+                const fechaPrestamo = data.fechaPrestamo ? new Date(data.fechaPrestamo) : null;
+                const fechaDevolucion = data.fechaDevolucion ? new Date(data.fechaDevolucion) : new Date();
+                detalleFechas.textContent = fechaPrestamo
+                    ? `${fechaPrestamo.toLocaleDateString()} → ${fechaDevolucion.toLocaleDateString()}`
+                    : 'Fechas no disponibles';
+
+                if (data.diasRetraso > 0) {
+                    detalleRetraso.innerHTML = `<span class="badge bg-danger"><i class="fas fa-clock me-1"></i>${data.diasRetraso} día(s) de atraso</span>`;
+                } else {
+                    detalleRetraso.innerHTML = `<span class="badge bg-success"><i class="fas fa-check me-1"></i>Sin atraso</span>`;
+                }
+
+                detalle.classList.remove('d-none');
+            }
+
+            function procesarCodigo(codigo) {
+                ocultarMensajes();
+                resultadoExito.innerHTML = `
+                    <span class="spinner-border spinner-border-sm me-2" role="status"></span>
+                    Procesando devolución...
+                `;
+                resultadoExito.classList.remove('d-none');
+
+                fetch('/Prestamos/DevolverPorCodigo', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({ codigoBarras: codigo })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    resultadoExito.classList.add('d-none');
+
+                    if (data.success) {
+                        mostrarMensaje(resultadoExito, data.message);
+                        resultadoError.classList.add('d-none');
+                        estadoInicial.classList.add('d-none');
+                        resultadoExito.classList.remove('d-none');
+                        mostrarDetalle(data.data);
+                        actualizarHistorial(data.data);
+                        resetInput();
+                    } else {
+                        mostrarMensaje(resultadoError, data.message || 'No se pudo registrar la devolución.');
+                        detalle.classList.add('d-none');
+                        resultadoError.classList.remove('d-none');
+                        resetInput();
+                    }
+                })
+                .catch(() => {
+                    mostrarMensaje(resultadoError, 'Ocurrió un error al procesar la devolución.');
+                    resultadoError.classList.remove('d-none');
+                    detalle.classList.add('d-none');
+                    resetInput();
+                });
+            }
+
+            input.addEventListener('input', function (event) {
+                const value = event.target.value.trim();
+                if (!value) {
+                    return;
+                }
+
+                clearTimeout(buscarTimeout);
+                buscarTimeout = setTimeout(() => procesarCodigo(value), 400);
+            });
+
+            input.addEventListener('keypress', function (event) {
+                if (event.key === 'Enter') {
+                    event.preventDefault();
+                    const value = event.target.value.trim();
+                    if (value.length > 0) {
+                        clearTimeout(buscarTimeout);
+                        procesarCodigo(value);
+                    }
+                }
+            });
+
+            // Mantener foco siempre en el input
+            window.addEventListener('focus', () => resetInput(false));
+
+            const escapeHtml = (value) => {
+                if (!value) return '';
+                return value.replace(/[&<>"']/g, (char) => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                }[char]));
+            };
+
+            function ocultarSugerenciasPrestamos() {
+                if (!sugerenciasPrestamos) return;
+                sugerenciasPrestamos.classList.add('d-none');
+                sugerenciasPrestamos.innerHTML = '';
+            }
+
+            function cargarPrestamosManual(term) {
+                fetch(`/Prestamos/BuscarPrestamosActivos?termino=${encodeURIComponent(term)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!sugerenciasPrestamos) return;
+                        if (!data.success || !Array.isArray(data.prestamos) || data.prestamos.length === 0) {
+                            ocultarSugerenciasPrestamos();
+                            return;
+                        }
+
+                        const items = data.prestamos.map(p => `
+                            <div class="list-group-item d-flex justify-content-between align-items-start">
+                                <div>
+                                    <div class="fw-semibold">${escapeHtml(p.titulo || 'Sin título')}</div>
+                                    <div class="small text-muted">${escapeHtml(p.usuario || 'Usuario')} · ${escapeHtml(p.rut || '')}</div>
+                                    <div class="tiny text-muted">Código: ${escapeHtml(p.codigo || '')}</div>
+                                </div>
+                                <button type="button" class="btn btn-sm btn-outline-primary" data-codigo="${encodeURIComponent(p.codigo || '')}">
+                                    <i class="fas fa-undo me-1"></i>Devolver
+                                </button>
+                            </div>
+                        `).join('');
+
+                        sugerenciasPrestamos.innerHTML = items;
+                        sugerenciasPrestamos.classList.remove('d-none');
+                    })
+                    .catch(() => ocultarSugerenciasPrestamos());
+            }
+
+            if (buscadorPrestamoManual) {
+                buscadorPrestamoManual.addEventListener('input', function () {
+                    const value = this.value.trim();
+                    if (value.length < 2) {
+                        ocultarSugerenciasPrestamos();
+                        return;
+                    }
+
+                    clearTimeout(buscarPrestamoTimeout);
+                    buscarPrestamoTimeout = setTimeout(() => cargarPrestamosManual(value), 300);
+                });
+            }
+
+            if (sugerenciasPrestamos) {
+                sugerenciasPrestamos.addEventListener('click', function (event) {
+                    const button = event.target.closest('button[data-codigo]');
+                    if (!button) return;
+                    const codigo = decodeURIComponent(button.dataset.codigo || '');
+                    if (!codigo) return;
+                    ocultarSugerenciasPrestamos();
+                    procesarCodigo(codigo);
+                });
+            }
+
+            document.addEventListener('click', function (event) {
+                if (sugerenciasPrestamos && !sugerenciasPrestamos.contains(event.target) && event.target !== buscadorPrestamoManual) {
+                    ocultarSugerenciasPrestamos();
+                }
+            });
+
+            renderHistorial();
+            actualizarContadorDevoluciones();
+        })();
+    </script>
+}
+

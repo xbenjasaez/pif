@@ -1,0 +1,554 @@
+@{
+    ViewData["Title"] = "Préstamo rápido";
+}
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-1 text-primary"><i class="fas fa-qrcode me-2"></i>Préstamo rápido</h1>
+        <p class="text-muted mb-0">
+            Escanea el código de barras del ejemplar y el RUT/ID del usuario para registrar un préstamo al instante.
+        </p>
+    </div>
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-list me-1"></i>Ver préstamos
+        </a>
+        <a asp-action="DevolucionRapida" class="btn btn-warning">
+            <i class="fas fa-barcode me-1"></i>Devolución rápida
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-5">
+        <div class="card shadow h-100">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <h5 class="card-title mb-0"><i class="fas fa-scanner-gun me-2"></i>Crear préstamo</h5>
+                    <span class="badge bg-light text-dark" id="contadorPrestamos">0 préstamos hoy</span>
+                </div>
+
+                @Html.AntiForgeryToken()
+
+                <!-- Paso 1: Escanear Ejemplar -->
+                <div id="paso1">
+                    <label for="codigoEjemplarInput" class="form-label fw-semibold">
+                        1. Código de barras del ejemplar
+                    </label>
+                    <div class="input-group input-group-lg mb-3">
+                        <span class="input-group-text bg-white"><i class="fas fa-barcode"></i></span>
+                        <input type="text"
+                               class="form-control form-control-lg"
+                               id="codigoEjemplarInput"
+                               placeholder="Escanea el código del libro..."
+                               autocomplete="off"
+                               autofocus />
+                    </div>
+                    
+                    <div class="alert alert-info" id="estadoInicial">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Escanea el código del ejemplar para comenzar. También puedes presionar <strong>Ctrl + Shift + P</strong> desde cualquier pantalla para abrir este módulo.
+                    </div>
+
+                    <label for="buscadorEjemplarManual" class="form-label fw-semibold mt-3 mb-1">
+                        Buscar manualmente
+                    </label>
+                    <input type="text" class="form-control" id="buscadorEjemplarManual" placeholder="Título, autor o código" autocomplete="off" />
+                    <div class="form-text">Si no tienes el escáner, busca el libro por nombre.</div>
+                    <div id="sugerenciasEjemplares" class="list-group shadow-sm d-none mt-2"></div>
+                </div>
+
+                <!-- Paso 2: Información del Libro y Usuario -->
+                <div id="paso2" class="d-none">
+                    <div class="alert alert-success mb-3">
+                        <i class="fas fa-check-circle me-2"></i>
+                        Ejemplar encontrado: <strong id="libroSeleccionado"></strong>
+                    </div>
+
+                    <label for="usuarioInput" class="form-label fw-semibold">
+                        2. RUT o ID del usuario
+                    </label>
+                    <div class="input-group input-group-lg mb-2">
+                        <span class="input-group-text bg-white"><i class="fas fa-user"></i></span>
+                        <input type="text"
+                               class="form-control form-control-lg"
+                               id="usuarioInput"
+                               placeholder="Escribe el RUT o nombre..."
+                               autocomplete="off" />
+                    </div>
+                    <div id="sugerenciasUsuarios" class="list-group shadow-sm d-none mb-2"></div>
+                    <div class="form-text" id="usuarioSeleccionadoInfo"></div>
+
+                    <button type="button" class="btn btn-primary btn-lg w-100" id="btnCrearPrestamo">
+                        <i class="fas fa-check me-2"></i>Crear Préstamo
+                    </button>
+
+                    <button type="button" class="btn btn-outline-secondary w-100 mt-2" id="btnReset">
+                        <i class="fas fa-undo me-2"></i>Escanear otro libro
+                    </button>
+                </div>
+
+                <div class="alert alert-success mt-4 d-none" id="resultadoExito"></div>
+                <div class="alert alert-danger mt-4 d-none" id="resultadoError"></div>
+
+                <div class="border rounded p-3 mt-4 d-none" id="detallePrestamo">
+                    <h6 class="text-success"><i class="fas fa-check-circle me-2"></i>Último préstamo</h6>
+                    <ul class="list-unstyled mb-0 small">
+                        <li><strong>Libro:</strong> <span id="detalleLibro"></span></li>
+                        <li><strong>Código:</strong> <span id="detalleCodigo"></span></li>
+                        <li><strong>Usuario:</strong> <span id="detalleUsuario"></span></li>
+                        <li><strong>Curso:</strong> <span id="detalleCurso"></span></li>
+                        <li><strong>Fecha préstamo:</strong> <span id="detalleFechaPrestamo"></span></li>
+                        <li><strong>Fecha vencimiento:</strong> <span id="detalleFechaVencimiento"></span></li>
+                    </ul>
+                </div>
+
+                <div class="mt-4">
+                    <h6 class="fw-semibold text-muted mb-2"><i class="fas fa-bolt me-2"></i>Tips de velocidad</h6>
+                    <ul class="small text-muted ps-3 mb-0">
+                        <li>Escanea primero el ejemplar, luego el usuario.</li>
+                        <li>Si el lector no envía Enter, presiona la tecla manualmente.</li>
+                        <li>Verifica que el ejemplar esté disponible.</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-7">
+        <div class="card shadow h-100">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0"><i class="fas fa-clock-rotate-left me-2"></i>Préstamos recientes</h5>
+                <span class="text-muted small">Sólo de esta sesión</span>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Hora</th>
+                                <th>Libro</th>
+                                <th>Usuario</th>
+                                <th>Código</th>
+                                <th>Vencimiento</th>
+                            </tr>
+                        </thead>
+                        <tbody id="historialPrestamos">
+                            <tr id="historialVacio">
+                                <td colspan="5" class="text-center text-muted py-4">
+                                    <i class="fas fa-inbox fa-2x mb-2"></i>
+                                    <div>Aún no registras préstamos en esta sesión.</div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow mt-4">
+            <div class="card-body">
+                <h6 class="fw-semibold mb-2"><i class="fas fa-keyboard me-2"></i>Atajos útiles</h6>
+                <div class="row text-muted small">
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Ctrl + Shift + P</strong></p>
+                        <p class="mb-3">Abrir este módulo desde cualquier pantalla.</p>
+                    </div>
+                    <div class="col-md-6">
+                        <p class="mb-1"><strong>Enter</strong></p>
+                        <p class="mb-0">Forzar la búsqueda si el lector no envía la tecla automáticamente.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        (function () {
+            const codigoEjemplarInput = document.getElementById('codigoEjemplarInput');
+            const usuarioInput = document.getElementById('usuarioInput');
+            const sugerenciasUsuarios = document.getElementById('sugerenciasUsuarios');
+            const usuarioSeleccionadoInfo = document.getElementById('usuarioSeleccionadoInfo');
+            const buscadorEjemplarManual = document.getElementById('buscadorEjemplarManual');
+            const sugerenciasEjemplares = document.getElementById('sugerenciasEjemplares');
+            const btnCrearPrestamo = document.getElementById('btnCrearPrestamo');
+            const btnReset = document.getElementById('btnReset');
+            const paso1 = document.getElementById('paso1');
+            const paso2 = document.getElementById('paso2');
+            const libroSeleccionado = document.getElementById('libroSeleccionado');
+            const resultadoExito = document.getElementById('resultadoExito');
+            const resultadoError = document.getElementById('resultadoError');
+            const detallePrestamo = document.getElementById('detallePrestamo');
+            const detalleLibro = document.getElementById('detalleLibro');
+            const detalleCodigo = document.getElementById('detalleCodigo');
+            const detalleUsuario = document.getElementById('detalleUsuario');
+            const detalleCurso = document.getElementById('detalleCurso');
+            const detalleFechaPrestamo = document.getElementById('detalleFechaPrestamo');
+            const detalleFechaVencimiento = document.getElementById('detalleFechaVencimiento');
+            const estadoInicial = document.getElementById('estadoInicial');
+            const historialBody = document.getElementById('historialPrestamos');
+            const historialVacio = document.getElementById('historialVacio');
+            const contadorPrestamos = document.getElementById('contadorPrestamos');
+            const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
+            const token = tokenInput ? tokenInput.value : '';
+
+            let ejemplarSeleccionado = null;
+            let usuarioSeleccionado = null;
+            let historial = [];
+            let prestamosHoy = 0;
+            let buscarUsuarioTimeout;
+            let buscarEjemplarManualTimeout;
+
+            function ocultarMensajes() {
+                estadoInicial.classList.add('d-none');
+                resultadoExito.classList.add('d-none');
+                resultadoError.classList.add('d-none');
+                detallePrestamo.classList.add('d-none');
+            }
+
+            function escapeHtml(value) {
+                if (!value) return '';
+                return value.replace(/[&<>"']/g, (char) => ({
+                    '&': '&amp;',
+                    '<': '&lt;',
+                    '>': '&gt;',
+                    '"': '&quot;',
+                    "'": '&#39;'
+                })[char]);
+            }
+
+            function ocultarSugerencias() {
+                sugerenciasUsuarios.classList.add('d-none');
+                sugerenciasUsuarios.innerHTML = '';
+            }
+
+            function ocultarSugerenciasEjemplares() {
+                sugerenciasEjemplares.classList.add('d-none');
+                sugerenciasEjemplares.innerHTML = '';
+            }
+
+            function mostrarUsuarioSeleccionado(usuario) {
+                if (usuario) {
+                    const cursoTexto = usuario.curso ? ` · Curso: ${usuario.curso}` : '';
+                    usuarioSeleccionadoInfo.textContent = `Usuario seleccionado: ${usuario.nombreCompleto} (${usuario.rut})${cursoTexto}`;
+                } else {
+                    usuarioSeleccionadoInfo.textContent = '';
+                }
+            }
+
+            function mostrarMensaje(elemento, mensaje) {
+                elemento.innerHTML = mensaje;
+                elemento.classList.remove('d-none');
+            }
+
+            function resetFormulario() {
+                ejemplarSeleccionado = null;
+                 usuarioSeleccionado = null;
+                codigoEjemplarInput.value = '';
+                usuarioInput.value = '';
+                paso1.classList.remove('d-none');
+                paso2.classList.add('d-none');
+                ocultarMensajes();
+                estadoInicial.classList.remove('d-none');
+                codigoEjemplarInput.focus();
+                ocultarSugerencias();
+                ocultarSugerenciasEjemplares();
+                mostrarUsuarioSeleccionado(null);
+            }
+
+            function buscarEjemplar(codigo) {
+                ocultarMensajes();
+                mostrarMensaje(resultadoExito, '<span class="spinner-border spinner-border-sm me-2"></span>Buscando ejemplar...');
+
+                fetch(`/Prestamos/BuscarEjemplar?codigoBarras=${encodeURIComponent(codigo)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        resultadoExito.classList.add('d-none');
+
+                        if (data.success) {
+                            ejemplarSeleccionado = data.ejemplar;
+                            const libroNombre = data.ejemplar?.libro?.titulo ?? 'Sin título';
+                            const autorNombre = data.ejemplar?.libro?.autor ?? null;
+                            libroSeleccionado.textContent = autorNombre
+                                ? `${libroNombre} — ${autorNombre}`
+                                : libroNombre;
+                            paso1.classList.add('d-none');
+                            paso2.classList.remove('d-none');
+                            usuarioInput.focus();
+                        } else {
+                            mostrarMensaje(resultadoError, data.message || 'No se pudo encontrar el ejemplar.');
+                            codigoEjemplarInput.value = '';
+                            codigoEjemplarInput.focus();
+                        }
+                    })
+                    .catch(() => {
+                        mostrarMensaje(resultadoError, 'Error al buscar el ejemplar.');
+                        codigoEjemplarInput.value = '';
+                        codigoEjemplarInput.focus();
+                    });
+            }
+
+            function crearPrestamo() {
+                const rutUsuario = usuarioInput.value.trim();
+                if (!rutUsuario) {
+                    mostrarMensaje(resultadoError, 'Debes ingresar el RUT o ID del usuario.');
+                    return;
+                }
+
+                ocultarMensajes();
+                mostrarMensaje(resultadoExito, '<span class="spinner-border spinner-border-sm me-2"></span>Creando préstamo...');
+                btnCrearPrestamo.disabled = true;
+
+                fetch('/Prestamos/CrearPrestamoRapido', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'X-CSRF-TOKEN': token
+                    },
+                    body: JSON.stringify({
+                        codigoBarras: ejemplarSeleccionado.codigoBarras,
+                        rutUsuario: rutUsuario
+                    })
+                })
+                .then(response => response.json())
+                .then(data => {
+                    btnCrearPrestamo.disabled = false;
+                    resultadoExito.classList.add('d-none');
+
+                    if (data.success) {
+                        mostrarMensaje(resultadoExito, data.message);
+                        mostrarDetallePrestamo(data.data);
+                        actualizarHistorial(data.data);
+                        incrementarPrestamosHoy();
+                        setTimeout(() => resetFormulario(), 3000);
+                    } else {
+                        mostrarMensaje(resultadoError, data.message || 'No se pudo crear el préstamo.');
+                    }
+                })
+                .catch(() => {
+                    btnCrearPrestamo.disabled = false;
+                    mostrarMensaje(resultadoError, 'Error al crear el préstamo.');
+                });
+            }
+
+            function mostrarDetallePrestamo(data) {
+                detalleLibro.textContent = data.libro || 'Sin título';
+                detalleCodigo.textContent = data.codigoBarras || '';
+                detalleUsuario.textContent = `${data.usuario || 'Usuario'} (${data.rut || 'Sin RUT'})`;
+                detalleCurso.textContent = data.curso || 'Sin curso';
+                detalleFechaPrestamo.textContent = data.fechaPrestamo ? new Date(data.fechaPrestamo).toLocaleDateString() : '';
+                detalleFechaVencimiento.textContent = data.fechaVencimiento ? new Date(data.fechaVencimiento).toLocaleDateString() : '';
+                detallePrestamo.classList.remove('d-none');
+            }
+
+            function actualizarHistorial(data) {
+                historial.unshift({
+                    hora: new Date(),
+                    libro: data.libro || 'Sin título',
+                    usuario: data.usuario || 'Usuario',
+                    codigo: data.codigoBarras || '',
+                    vencimiento: data.fechaVencimiento ? new Date(data.fechaVencimiento) : null
+                });
+
+                if (historial.length > 8) {
+                    historial = historial.slice(0, 8);
+                }
+
+                renderHistorial();
+            }
+
+            function renderHistorial() {
+                if (historial.length === 0) {
+                    historialVacio.classList.remove('d-none');
+                    return;
+                }
+                historialVacio.classList.add('d-none');
+                historialBody.innerHTML = historial.map(item => `
+                    <tr>
+                        <td>${item.hora.toLocaleTimeString()}</td>
+                        <td><strong>${item.libro}</strong></td>
+                        <td>${item.usuario}</td>
+                        <td><span class="badge bg-light text-dark">${item.codigo}</span></td>
+                        <td>${item.vencimiento ? item.vencimiento.toLocaleDateString() : 'N/A'}</td>
+                    </tr>
+                `).join('');
+            }
+
+            function cargarSugerenciasUsuarios(termino) {
+                fetch(`/Prestamos/BuscarUsuarios?termino=${encodeURIComponent(termino)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success || !Array.isArray(data.usuarios) || data.usuarios.length === 0) {
+                            ocultarSugerencias();
+                            return;
+                        }
+
+                        const items = data.usuarios.map(usuario => {
+                            const nombre = escapeHtml(usuario.nombreCompleto || 'Sin nombre');
+                            const rut = escapeHtml(usuario.rut || '');
+                            const curso = escapeHtml(usuario.curso || '');
+                            const telefono = escapeHtml(usuario.telefono || '');
+                            const email = escapeHtml(usuario.email || '');
+                            return `
+                                <button type="button"
+                                        class="list-group-item list-group-item-action d-flex justify-content-between align-items-start"
+                                        data-rut="${encodeURIComponent(usuario.rut || '')}"
+                                        data-nombre="${encodeURIComponent(usuario.nombreCompleto || '')}"
+                                        data-curso="${encodeURIComponent(usuario.curso || '')}">
+                                    <div>
+                                        <div class="fw-semibold">${nombre}</div>
+                                        <div class="small text-muted">
+                                            ${rut}${curso ? ` · ${curso}` : ''}${email ? ` · ${email}` : ''}
+                                        </div>
+                                    </div>
+                                    ${telefono ? `<span class="badge bg-light text-dark">${telefono}</span>` : ''}
+                                </button>`;
+                        }).join('');
+
+                        sugerenciasUsuarios.innerHTML = items;
+                        sugerenciasUsuarios.classList.remove('d-none');
+                    })
+                    .catch(() => ocultarSugerencias());
+            }
+
+            function cargarSugerenciasEjemplarManual(termino) {
+                fetch(`/Prestamos/BuscarEjemplaresDisponibles?termino=${encodeURIComponent(termino)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (!data.success || !Array.isArray(data.ejemplares) || data.ejemplares.length === 0) {
+                            ocultarSugerenciasEjemplares();
+                            return;
+                        }
+
+                        const items = data.ejemplares.map(ejemplar => `
+                            <button type="button" class="list-group-item list-group-item-action"
+                                    data-codigo="${encodeURIComponent(ejemplar.codigo)}">
+                                <div class="fw-semibold">${escapeHtml(ejemplar.titulo)}</div>
+                                <div class="small text-muted">
+                                    ${escapeHtml(ejemplar.autor ?? '')} · Código: ${escapeHtml(ejemplar.codigo ?? '')}
+                                </div>
+                            </button>
+                        `).join('');
+
+                        sugerenciasEjemplares.innerHTML = items;
+                        sugerenciasEjemplares.classList.remove('d-none');
+                    })
+                    .catch(() => ocultarSugerenciasEjemplares());
+            }
+
+            // Event listeners
+            codigoEjemplarInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const codigo = this.value.trim();
+                    if (codigo) {
+                        buscarEjemplar(codigo);
+                    }
+                }
+            });
+
+            usuarioInput.addEventListener('input', function () {
+                const value = this.value.trim();
+                usuarioSeleccionado = null;
+                mostrarUsuarioSeleccionado(null);
+
+                if (value.length < 2) {
+                    ocultarSugerencias();
+                    return;
+                }
+
+                clearTimeout(buscarUsuarioTimeout);
+                buscarUsuarioTimeout = setTimeout(() => cargarSugerenciasUsuarios(value), 250);
+            });
+
+            usuarioInput.addEventListener('keypress', function (e) {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    crearPrestamo();
+                }
+            });
+
+            sugerenciasUsuarios.addEventListener('click', function (event) {
+                const item = event.target.closest('button[data-rut]');
+                if (!item) return;
+
+                const rut = decodeURIComponent(item.dataset.rut || '');
+                const nombre = decodeURIComponent(item.dataset.nombre || '');
+                const curso = decodeURIComponent(item.dataset.curso || '');
+
+                usuarioSeleccionado = { rut, nombreCompleto: nombre, curso };
+                usuarioInput.value = rut;
+                mostrarUsuarioSeleccionado(usuarioSeleccionado);
+                ocultarSugerencias();
+                usuarioInput.focus();
+            });
+
+            document.addEventListener('click', function (event) {
+                if (!sugerenciasUsuarios.contains(event.target) && event.target !== usuarioInput) {
+                    ocultarSugerencias();
+                }
+                if (!sugerenciasEjemplares.contains(event.target) && event.target !== buscadorEjemplarManual) {
+                    ocultarSugerenciasEjemplares();
+                }
+            });
+
+            btnCrearPrestamo.addEventListener('click', crearPrestamo);
+            btnReset.addEventListener('click', resetFormulario);
+
+            buscadorEjemplarManual.addEventListener('input', function () {
+                const value = this.value.trim();
+                if (value.length < 2) {
+                    ocultarSugerenciasEjemplares();
+                    return;
+                }
+                clearTimeout(buscarEjemplarManualTimeout);
+                buscarEjemplarManualTimeout = setTimeout(() => cargarSugerenciasEjemplarManual(value), 250);
+            });
+
+            sugerenciasEjemplares.addEventListener('click', function (event) {
+                const item = event.target.closest('button[data-codigo]');
+                if (!item) return;
+                const codigo = decodeURIComponent(item.dataset.codigo || '');
+                buscadorEjemplarManual.value = '';
+                ocultarSugerenciasEjemplares();
+                codigoEjemplarInput.value = codigo;
+                buscarEjemplar(codigo);
+            });
+
+            function actualizarContadorPrestamos() {
+                contadorPrestamos.textContent = `${prestamosHoy} préstamo${prestamosHoy === 1 ? '' : 's'} hoy`;
+            }
+
+            function cargarPrestamosHoy() {
+                fetch('/Prestamos/PrestamosHoyCount')
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data?.success) {
+                            prestamosHoy = data.count ?? 0;
+                            actualizarContadorPrestamos();
+                        }
+                    })
+                    .catch(() => actualizarContadorPrestamos());
+            }
+
+            function incrementarPrestamosHoy() {
+                prestamosHoy++;
+                actualizarContadorPrestamos();
+            }
+
+            // Atajo global Ctrl + Shift + P
+            document.addEventListener('keydown', function(event) {
+                if (event.ctrlKey && event.shiftKey && event.key === 'P') {
+                    event.preventDefault();
+                    window.location.href = '/Prestamos/PrestamoRapido';
+                }
+            });
+
+            cargarPrestamosHoy();
+            actualizarContadorPrestamos();
+        })();
+    </script>
+}
+

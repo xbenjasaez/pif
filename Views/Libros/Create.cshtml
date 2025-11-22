@@ -1,0 +1,213 @@
+@model BibliotecaVirtualWeb.Models.Libro
+@{
+    ViewData["Title"] = "Agregar Libro";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-plus me-2"></i>Agregar Nuevo Libro
+    </h1>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver a la Lista
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-book me-2"></i>Información del Libro
+                </h6>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                    
+                    <div class="row">
+                        <div class="col-md-8">
+                            <div class="mb-3">
+                                <label asp-for="Titulo" class="form-label"></label>
+                                <input asp-for="Titulo" class="form-control" placeholder="Ingrese el título del libro" />
+                                <span asp-validation-for="Titulo" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="mb-3">
+                                <label asp-for="Año" class="form-label"></label>
+                                <input asp-for="Año" class="form-control" placeholder="Año de publicación" />
+                                <span asp-validation-for="Año" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Autor" class="form-label"></label>
+                                <input asp-for="Autor" class="form-control" placeholder="Nombre del autor" />
+                                <span asp-validation-for="Autor" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ISBN" class="form-label"></label>
+                                <input asp-for="ISBN" class="form-control" placeholder="ISBN del libro" />
+                                <span asp-validation-for="ISBN" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Categoria" class="form-label"></label>
+                                <select asp-for="Categoria" class="form-select">
+                                    <option value="">Seleccionar categoría</option>
+                                    <option value="Ficción">Ficción</option>
+                                    <option value="No Ficción">No Ficción</option>
+                                    <option value="Ciencia">Ciencia</option>
+                                    <option value="Historia">Historia</option>
+                                    <option value="Biografía">Biografía</option>
+                                    <option value="Tecnología">Tecnología</option>
+                                    <option value="Arte">Arte</option>
+                                    <option value="Filosofía">Filosofía</option>
+                                    <option value="Otros">Otros</option>
+                                </select>
+                                <span asp-validation-for="Categoria" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Editorial" class="form-label"></label>
+                                <input asp-for="Editorial" class="form-control" placeholder="Nombre de la editorial" />
+                                <span asp-validation-for="Editorial" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="Ubicacion" class="form-label">Ubicación Física</label>
+                                <div class="row g-2">
+                                    <div class="col-6">
+                                        <select id="ubicacionLetra" class="form-select" required>
+                                            <option value="">Seleccione letra</option>
+                                            @for (char c = 'A'; c <= 'Z'; c++)
+                                            {
+                                                <option value="@c">@c</option>
+                                            }
+                                        </select>
+                                    </div>
+                                    <div class="col-6">
+                                        <input type="number" id="ubicacionRepisa" class="form-control" min="1" max="99" placeholder="Repisa" required />
+                                    </div>
+                                </div>
+                                <input type="hidden" asp-for="Ubicacion" id="Ubicacion" />
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Formato: Letra (A-Z) y número de repisa (1-99). Ejemplo: A-5
+                                </small>
+                                <span asp-validation-for="Ubicacion" class="text-danger"></span>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <label asp-for="ProveedorId" class="form-label"></label>
+                                <select asp-for="ProveedorId" class="form-select" asp-items="@(new SelectList(ViewBag.Proveedores, "Id", "Nombre"))">
+                                    <option value="">Seleccionar proveedor</option>
+                                </select>
+                                <span asp-validation-for="ProveedorId" class="text-danger"></span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Descripcion" class="form-label"></label>
+                        <textarea asp-for="Descripcion" class="form-control" rows="3" placeholder="Descripción del libro"></textarea>
+                        <span asp-validation-for="Descripcion" class="text-danger"></span>
+                    </div>
+
+                    <div class="mb-3">
+                        <label asp-for="Notas" class="form-label"></label>
+                        <textarea asp-for="Notas" class="form-control" rows="2" placeholder="Notas adicionales"></textarea>
+                        <span asp-validation-for="Notas" class="text-danger"></span>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Guardar Libro
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="fas fa-info-circle me-2"></i>Información
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-lightbulb me-1"></i>Consejos
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li>El <strong>título</strong> y <strong>autor</strong> son campos obligatorios</li>
+                        <li>El <strong>código de barras</strong> se generará automáticamente</li>
+                        <li>El libro se creará con estado <strong>Disponible</strong> por defecto</li>
+                        <li>Puedes agregar un proveedor si el libro fue donado o comprado</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Importante
+                    </h6>
+                    <p class="mb-0 small">
+                        Una vez guardado, el libro estará disponible para préstamos inmediatamente.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        // Combinar letra y repisa en el campo de ubicación
+        function actualizarUbicacion() {
+            const letra = document.getElementById('ubicacionLetra').value;
+            const repisa = document.getElementById('ubicacionRepisa').value;
+            const ubicacionInput = document.getElementById('Ubicacion');
+            
+            if (letra && repisa) {
+                ubicacionInput.value = letra + '-' + repisa;
+            } else {
+                ubicacionInput.value = '';
+            }
+        }
+        
+        document.getElementById('ubicacionLetra').addEventListener('change', actualizarUbicacion);
+        document.getElementById('ubicacionRepisa').addEventListener('input', actualizarUbicacion);
+        
+        // Si hay un valor existente en Ubicacion, parsearlo
+        const ubicacionInicial = document.getElementById('Ubicacion').value;
+        if (ubicacionInicial) {
+            const match = ubicacionInicial.match(/^([A-Z])-?(\d+)$/);
+            if (match) {
+                document.getElementById('ubicacionLetra').value = match[1];
+                document.getElementById('ubicacionRepisa').value = match[2];
+            }
+        }
+    </script>
+}

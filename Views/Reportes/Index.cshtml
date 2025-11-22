@@ -1,0 +1,1038 @@
+@model BibliotecaVirtualWeb.Models.ReportesDetalladosViewModel
+@{
+    ViewData["Title"] = "Reportes y Estadísticas Detalladas";
+}
+
+<style>
+    .ranking-card {
+        transition: transform 0.2s, box-shadow 0.2s;
+        border-left: 4px solid;
+    }
+    
+    .ranking-card:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(0,0,0,0.15) !important;
+    }
+    
+    .rank-1 { border-left-color: #FFD700; background: linear-gradient(135deg, #fff9e6 0%, #ffffff 100%); }
+    .rank-2 { border-left-color: #C0C0C0; background: linear-gradient(135deg, #f5f5f5 0%, #ffffff 100%); }
+    .rank-3 { border-left-color: #CD7F32; background: linear-gradient(135deg, #faf5f0 0%, #ffffff 100%); }
+    
+    .medal {
+        font-size: 2rem;
+        line-height: 1;
+    }
+    
+    .stat-card {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        border-radius: 15px;
+        padding: 1.5rem;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    }
+    
+    .stat-card-secondary {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+    
+    .stat-card-success {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+    
+    .stat-card-warning {
+        background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+    }
+    
+    .progress-bar-custom {
+        height: 25px;
+        border-radius: 12px;
+        background: linear-gradient(90deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 0.9rem;
+        transition: width 1s ease-in-out;
+    }
+    
+    .ranking-number {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #667eea;
+        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+    }
+    
+    .trophy-icon {
+        font-size: 3rem;
+        background: linear-gradient(135deg, #FFD700, #FFA500);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+    }
+    
+    .hover-lift {
+        transition: all 0.3s ease;
+    }
+    
+    .hover-lift:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    }
+
+    .bg-gradient-primary {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+
+    .bg-gradient-success {
+        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
+    }
+
+    .bg-gradient-warning {
+        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+    }
+
+    .bg-gradient-info {
+        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+    }
+
+    .opacity-50 {
+        opacity: 0.5;
+    }
+</style>
+
+<div class="d-flex justify-content-between align-items-center mb-4 flex-wrap">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-chart-bar me-2"></i>Panel de Reportes
+    </h1>
+    <div class="text-muted">
+        <i class="fas fa-info-circle me-1"></i>
+        Selecciona una pestaña para ver diferentes análisis
+    </div>
+</div>
+
+<!-- Filtros de Tiempo -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <div class="row align-items-center mb-3">
+            <div class="col-md-12">
+                <h5 class="mb-3">
+                    <i class="fas fa-filter me-2 text-primary"></i>Filtrar por Periodo de Tiempo
+                </h5>
+                
+                <!-- Períodos Rápidos -->
+                <div class="btn-group flex-wrap mb-2" role="group">
+                    <a asp-action="Index" asp-route-periodo="Hoy" 
+                       class="btn @(Model.Filtro.Periodo == "Hoy" ? "btn-primary" : "btn-outline-primary") btn-sm">
+                        <i class="fas fa-calendar-day me-1"></i>Hoy
+                    </a>
+                    <a asp-action="Index" asp-route-periodo="Semana" 
+                       class="btn @(Model.Filtro.Periodo == "Semana" ? "btn-primary" : "btn-outline-primary") btn-sm">
+                        <i class="fas fa-calendar-week me-1"></i>Semana
+                    </a>
+                    <a asp-action="Index" asp-route-periodo="Mes" 
+                       class="btn @(Model.Filtro.Periodo == "Mes" ? "btn-primary" : "btn-outline-primary") btn-sm">
+                        <i class="fas fa-calendar-alt me-1"></i>Mes
+                    </a>
+                    <a asp-action="Index" asp-route-periodo="SeisMeses" 
+                       class="btn @(Model.Filtro.Periodo == "SeisMeses" ? "btn-primary" : "btn-outline-primary") btn-sm">
+                        <i class="fas fa-calendar me-1"></i>6 Meses <span class="badge bg-warning text-dark ms-1">Recomendado</span>
+                    </a>
+                    <a asp-action="Index" asp-route-periodo="Anual" 
+                       class="btn @(Model.Filtro.Periodo == "Anual" ? "btn-primary" : "btn-outline-primary") btn-sm">
+                        <i class="fas fa-calendar-check me-1"></i>Anual <span class="badge bg-success ms-1">Recomendado</span>
+                    </a>
+                    <a asp-action="Index" asp-route-periodo="Historico" 
+                       class="btn @(Model.Filtro.Periodo == "Historico" ? "btn-primary" : "btn-outline-primary") btn-sm">
+                        <i class="fas fa-infinity me-1"></i>Histórico
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Filtro Personalizado -->
+        <div class="row">
+            <div class="col-md-12">
+                <div class="card bg-light">
+                    <div class="card-body">
+                        <h6 class="card-title">
+                            <i class="fas fa-sliders-h me-2"></i>Periodo Personalizado
+                        </h6>
+                        <form asp-action="Index" method="get" class="row g-3">
+                            <div class="col-md-4">
+                                <label for="fechaInicio" class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="fechaInicio" name="fechaInicio" 
+                                       value="@(Model.Filtro.Periodo == "Personalizado" ? Model.Filtro.FechaInicio.ToString("yyyy-MM-dd") : "")" />
+                            </div>
+                            <div class="col-md-4">
+                                <label for="fechaFin" class="form-label">Fecha Fin</label>
+                                <input type="date" class="form-control" id="fechaFin" name="fechaFin" 
+                                       value="@(Model.Filtro.Periodo == "Personalizado" ? Model.Filtro.FechaFin.ToString("yyyy-MM-dd") : DateTime.Now.ToString("yyyy-MM-dd"))" />
+                            </div>
+                            <div class="col-md-4">
+                                <label class="form-label d-block">&nbsp;</label>
+                                <button type="submit" class="btn btn-primary w-100">
+                                    <i class="fas fa-search me-1"></i>Aplicar Filtro
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información del Período Activo -->
+        @if (Model.Filtro.Periodo != "Historico")
+        {
+            <div class="alert alert-info mt-3 mb-0">
+                <i class="fas fa-info-circle me-2"></i>
+                <strong>Período Activo:</strong> @Model.Filtro.Periodo &nbsp;|&nbsp;
+                Mostrando datos desde <strong>@Model.Filtro.FechaInicio.ToString("dd/MM/yyyy")</strong> 
+                hasta <strong>@Model.Filtro.FechaFin.ToString("dd/MM/yyyy")</strong>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-success mt-3 mb-0">
+                <i class="fas fa-history me-2"></i>
+                Mostrando <strong>todos los datos históricos</strong> desde <strong>@Model.Filtro.FechaInicio.ToString("dd/MM/yyyy")</strong>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Navegación por Pestañas -->
+<ul class="nav nav-tabs mb-4" id="reportesTabs" role="tablist">
+    <li class="nav-item" role="presentation">
+        <button class="nav-link active" id="resumen-tab" data-bs-toggle="tab" data-bs-target="#resumen" type="button" role="tab">
+            <i class="fas fa-tachometer-alt me-1"></i>Resumen Ejecutivo
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="prestamos-tab" data-bs-toggle="tab" data-bs-target="#prestamos" type="button" role="tab">
+            <i class="fas fa-hand-holding me-1"></i>Análisis de Préstamos
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="rankings-tab" data-bs-toggle="tab" data-bs-target="#rankings" type="button" role="tab">
+            <i class="fas fa-trophy me-1"></i>Rankings
+        </button>
+    </li>
+    <li class="nav-item" role="presentation">
+        <button class="nav-link" id="estadisticas-tab" data-bs-toggle="tab" data-bs-target="#estadisticas" type="button" role="tab">
+            <i class="fas fa-chart-line me-1"></i>Estadísticas Avanzadas
+        </button>
+    </li>
+</ul>
+
+<!-- Contenido de las Pestañas -->
+<div class="tab-content" id="reportesTabsContent">
+
+    <!-- PESTAÑA 1: RESUMEN EJECUTIVO -->
+    <div class="tab-pane fade show active" id="resumen" role="tabpanel">
+        
+        <!-- Accesos Rápidos -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h4 class="mb-3"><i class="fas fa-bolt me-2 text-warning"></i>Accesos Rápidos</h4>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a asp-action="LibrosNoDevueltos" asp-route-periodo="@Model.Filtro.Periodo" class="text-decoration-none">
+                    <div class="card border-warning hover-lift h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-book-open fa-3x text-warning mb-3"></i>
+                            <h3 class="text-warning mb-2">@Model.LibrosNoDevueltos</h3>
+                            <h6 class="card-title">Libros No Devueltos</h6>
+                            <p class="text-muted small mb-3">Ver listado completo</p>
+                            <span class="btn btn-sm btn-outline-warning">
+                                <i class="fas fa-arrow-right me-1"></i>Ver Detalle
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+                <a asp-action="PrestamosVencidos" asp-route-periodo="@Model.Filtro.Periodo" class="text-decoration-none">
+                    <div class="card border-danger hover-lift h-100">
+                        <div class="card-body text-center">
+                            <i class="fas fa-calendar-times fa-3x text-danger mb-3"></i>
+                            <h3 class="text-danger mb-2">@Model.PrestamosVencidos</h3>
+                            <h6 class="card-title">Préstamos Vencidos</h6>
+                            <p class="text-muted small mb-3">Requieren atención urgente</p>
+                            <span class="btn btn-sm btn-outline-danger">
+                                <i class="fas fa-arrow-right me-1"></i>Ver Detalle
+                            </span>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card border-info h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-chart-pie fa-3x text-info mb-3"></i>
+                        <h3 class="text-info mb-2">@Model.TasaDevolucionPuntual%</h3>
+                        <h6 class="card-title">Tasa Devolución Puntual</h6>
+                        <p class="text-muted small mb-3">De @Model.TotalDevueltos devueltos</p>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3 mb-3">
+                <div class="card border-success h-100">
+                    <div class="card-body text-center">
+                        <i class="fas fa-clock fa-3x text-success mb-3"></i>
+                        <h3 class="text-success mb-2">@Model.PromedioTiempoPrestamoEnDias</h3>
+                        <h6 class="card-title">Promedio de Días</h6>
+                        <p class="text-muted small mb-3">Tiempo de préstamo</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Estadísticas Generales -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h4 class="mb-3"><i class="fas fa-chart-bar me-2 text-primary"></i>Estadísticas Generales</h4>
+            </div>
+        </div>
+        <div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="stat-card">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-users fa-2x"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 text-white-50">Total Usuarios</h6>
+                    <h2 class="mb-0">@Model.TotalUsuarios</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card stat-card-secondary">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-book fa-2x"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 text-white-50">Total Libros</h6>
+                    <h2 class="mb-0">@Model.TotalLibros</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card stat-card-success">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-hand-holding fa-2x"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 text-white-50">Total Préstamos</h6>
+                    <h2 class="mb-0">@Model.TotalPrestamos</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="stat-card stat-card-warning">
+            <div class="d-flex align-items-center">
+                <div class="me-3">
+                    <i class="fas fa-clock fa-2x"></i>
+                </div>
+                <div>
+                    <h6 class="mb-0 text-white-50">Activos</h6>
+                    <h2 class="mb-0">@Model.PrestamosActivos</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+    
+    </div>
+    <!-- FIN PESTAÑA 1 -->
+
+    <!-- PESTAÑA 2: ANÁLISIS DE PRÉSTAMOS -->
+    <div class="tab-pane fade" id="prestamos" role="tabpanel">
+        
+        <h4 class="mb-4"><i class="fas fa-analytics me-2"></i>Análisis Detallado de Préstamos</h4>
+
+<!-- Informes Detallados -->
+<div class="row mb-4">
+    <!-- Tasa de Devolución -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 bg-gradient" style="background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;">
+                <h5 class="m-0 font-weight-bold">
+                    <i class="fas fa-chart-pie me-2"></i>Tasa de Devolución
+                </h5>
+            </div>
+            <div class="card-body">
+                @if (Model.TotalDevueltos > 0)
+                {
+                    <div class="row text-center mb-4">
+                        <div class="col-6">
+                            <div class="p-3 bg-success bg-opacity-10 rounded">
+                                <i class="fas fa-check-circle fa-3x text-success mb-2"></i>
+                                <h3 class="mb-0 text-success">@Model.TasaDevolucionPuntual%</h3>
+                                <p class="mb-0 text-muted small">A Tiempo</p>
+                                <small class="text-muted">(@Model.TotalDevolucionesPuntuales libros)</small>
+                            </div>
+                        </div>
+                        <div class="col-6">
+                            <div class="p-3 bg-danger bg-opacity-10 rounded">
+                                <i class="fas fa-exclamation-circle fa-3x text-danger mb-2"></i>
+                                <h3 class="mb-0 text-danger">@Model.TasaDevolucionTardia%</h3>
+                                <p class="mb-0 text-muted small">Tardías</p>
+                                <small class="text-muted">(@Model.TotalDevolucionesTardias libros)</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="progress" style="height: 30px;">
+                        <div class="progress-bar bg-success" role="progressbar" 
+                             style="width: @Model.TasaDevolucionPuntual%" 
+                             aria-valuenow="@Model.TasaDevolucionPuntual" aria-valuemin="0" aria-valuemax="100">
+                            @Model.TasaDevolucionPuntual% Puntuales
+                        </div>
+                        <div class="progress-bar bg-danger" role="progressbar" 
+                             style="width: @Model.TasaDevolucionTardia%" 
+                             aria-valuenow="@Model.TasaDevolucionTardia" aria-valuemin="0" aria-valuemax="100">
+                            @Model.TasaDevolucionTardia% Tardías
+                        </div>
+                    </div>
+                    <p class="text-center text-muted mt-3 mb-0">
+                        Total de libros devueltos: <strong>@Model.TotalDevueltos</strong>
+                    </p>
+                }
+                else
+                {
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No hay datos de devoluciones en el periodo seleccionado.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Libros No Devueltos y Vencidos -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow h-100">
+            <div class="card-header py-3 bg-gradient" style="background: linear-gradient(135deg, #ee0979 0%, #ff6a00 100%); color: white;">
+                <h5 class="m-0 font-weight-bold">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Estado de Préstamos
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6 mb-3">
+                        <a asp-action="LibrosNoDevueltos" asp-route-periodo="@Model.Filtro.Periodo" 
+                           class="text-decoration-none" style="cursor: pointer;">
+                            <div class="p-4 bg-warning bg-opacity-10 rounded h-100 hover-lift">
+                                <i class="fas fa-book-open fa-3x text-warning mb-3"></i>
+                                <h2 class="mb-0 text-warning">@Model.LibrosNoDevueltos</h2>
+                                <p class="mb-0 text-muted">Libros No Devueltos</p>
+                                <small class="text-muted">(Préstamos activos)</small>
+                                <div class="mt-2">
+                                    <i class="fas fa-eye me-1"></i>
+                                    <small class="text-primary">Click para ver detalle</small>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                    <div class="col-6 mb-3">
+                        <a asp-action="PrestamosVencidos" asp-route-periodo="@Model.Filtro.Periodo" 
+                           class="text-decoration-none" style="cursor: pointer;">
+                            <div class="p-4 bg-danger bg-opacity-10 rounded h-100 hover-lift">
+                                <i class="fas fa-calendar-times fa-3x text-danger mb-3"></i>
+                                <h2 class="mb-0 text-danger">@Model.PrestamosVencidos</h2>
+                                <p class="mb-0 text-muted">Préstamos Vencidos</p>
+                                <small class="text-muted">(Requieren atención)</small>
+                                <div class="mt-2">
+                                    <i class="fas fa-eye me-1"></i>
+                                    <small class="text-primary">Click para ver detalle</small>
+                                </div>
+                            </div>
+                        </a>
+                    </div>
+                </div>
+                @if (Model.PromedioTiempoPrestamoEnDias > 0)
+                {
+                    <div class="alert alert-info mb-0 mt-3">
+                        <i class="fas fa-clock me-2"></i>
+                        <strong>Tiempo Promedio de Préstamo:</strong> 
+                        @Model.PromedioTiempoPrestamoEnDias días
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+
+    </div>
+    <!-- FIN PESTAÑA 2 -->
+
+    <!-- PESTAÑA 3: RANKINGS -->
+    <div class="tab-pane fade" id="rankings" role="tabpanel">
+        
+        <h4 class="mb-4"><i class="fas fa-trophy me-2"></i>Rankings y Popularidad</h4>
+
+<!-- Categorías Más Populares -->
+@if (Model.CategoriasPopulares.Any())
+{
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header py-3 bg-gradient" style="background: linear-gradient(135deg, #fc4a1a 0%, #f7b733 100%); color: white;">
+                    <h5 class="m-0 font-weight-bold">
+                        <i class="fas fa-tags me-2"></i>Categorías Más Populares
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        @foreach (var categoria in Model.CategoriasPopulares)
+                        {
+                            <div class="col-md-6 col-lg-4 mb-3">
+                                <div class="card bg-light h-100">
+                                    <div class="card-body">
+                                        <h5 class="card-title text-primary">
+                                            <i class="fas fa-bookmark me-2"></i>@categoria.Categoria
+                                        </h5>
+                                        <div class="d-flex justify-content-between mb-2">
+                                            <span class="text-muted">Total Préstamos:</span>
+                                            <strong>@categoria.TotalPrestamos</strong>
+                                        </div>
+                                        <div class="d-flex justify-content-between mb-3">
+                                            <span class="text-muted">Actualmente Prestados:</span>
+                                            <strong class="text-warning">@categoria.PrestamosActivos</strong>
+                                        </div>
+                                        <div class="progress" style="height: 25px;">
+                                            <div class="progress-bar bg-primary" role="progressbar" 
+                                                 style="width: @categoria.Porcentaje%" 
+                                                 aria-valuenow="@categoria.Porcentaje" aria-valuemin="0" aria-valuemax="100">
+                                                @categoria.Porcentaje%
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+        <!-- Rankings -->
+        <div class="row">
+    <!-- Top Usuarios -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 bg-gradient" style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;">
+                <h5 class="m-0 font-weight-bold">
+                    <i class="fas fa-trophy me-2"></i>Top 10 Usuarios Más Activos
+                </h5>
+            </div>
+            <div class="card-body">
+                @if (Model.TopUsuarios != null && Model.TopUsuarios.Any())
+                {
+                    var rank = 1;
+                    var maxPrestamos = Model.TopUsuarios.Max(u => u.TotalPrestamos);
+                    
+                    @foreach (var usuario in Model.TopUsuarios)
+                    {
+                        var porcentaje = maxPrestamos > 0 ? (usuario.TotalPrestamos * 100.0 / maxPrestamos) : 0;
+                        var rankClass = rank == 1 ? "rank-1" : rank == 2 ? "rank-2" : rank == 3 ? "rank-3" : "";
+                        
+                        <div class="ranking-card card mb-3 @rankClass" style="border: none;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        @if (rank == 1)
+                                        {
+                                            <span class="medal">🥇</span>
+                                        }
+                                        else if (rank == 2)
+                                        {
+                                            <span class="medal">🥈</span>
+                                        }
+                                        else if (rank == 3)
+                                        {
+                                            <span class="medal">🥉</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="ranking-number">#@rank</span>
+                                        }
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            <strong>@usuario.NombreCompleto</strong>
+                                            @if (rank <= 3)
+                                            {
+                                                <span class="badge bg-warning text-dark ms-2">Top @rank</span>
+                                            }
+                                        </h6>
+                                        <p class="mb-2 text-muted small">
+                                            <i class="fas fa-id-card me-1"></i>@usuario.RUT
+                                        </p>
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                <div class="progress-bar-custom" role="progressbar" style="width: @porcentaje%" aria-valuenow="@porcentaje" aria-valuemin="0" aria-valuemax="100">
+                                                    @usuario.TotalPrestamos préstamos
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="d-flex gap-3 flex-wrap">
+                                            <small class="text-muted">
+                                                <i class="fas fa-check-circle text-success me-1"></i>
+                                                @usuario.PrestamosDevueltos devueltos
+                                            </small>
+                                            <small class="text-muted">
+                                                <i class="fas fa-clock text-warning me-1"></i>
+                                                @usuario.PrestamosActivos activos
+                                            </small>
+                                            @if (usuario.PrestamosVencidos > 0)
+                                            {
+                                                <small class="text-muted">
+                                                    <i class="fas fa-exclamation-triangle text-danger me-1"></i>
+                                                    @usuario.PrestamosVencidos vencidos
+                                                </small>
+                                            }
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        rank++;
+                    }
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No hay datos de préstamos disponibles en el periodo seleccionado.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- Top Libros -->
+    <div class="col-lg-6 mb-4">
+        <div class="card shadow">
+            <div class="card-header py-3 bg-gradient" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;">
+                <h5 class="m-0 font-weight-bold">
+                    <i class="fas fa-star me-2"></i>Top 10 Libros Más Populares
+                </h5>
+            </div>
+            <div class="card-body">
+                @if (Model.TopLibros != null && Model.TopLibros.Any())
+                {
+                    var rank = 1;
+                    var maxPrestamos = Model.TopLibros.Max(l => l.TotalPrestamos);
+                    
+                    @foreach (var libro in Model.TopLibros)
+                    {
+                        var porcentaje = maxPrestamos > 0 ? (libro.TotalPrestamos * 100.0 / maxPrestamos) : 0;
+                        var rankClass = rank == 1 ? "rank-1" : rank == 2 ? "rank-2" : rank == 3 ? "rank-3" : "";
+                        
+                        <div class="ranking-card card mb-3 @rankClass" style="border: none;">
+                            <div class="card-body p-3">
+                                <div class="d-flex align-items-center">
+                                    <div class="me-3">
+                                        @if (rank == 1)
+                                        {
+                                            <span class="medal">🥇</span>
+                                        }
+                                        else if (rank == 2)
+                                        {
+                                            <span class="medal">🥈</span>
+                                        }
+                                        else if (rank == 3)
+                                        {
+                                            <span class="medal">🥉</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="ranking-number">#@rank</span>
+                                        }
+                                    </div>
+                                    <div class="flex-grow-1">
+                                        <h6 class="mb-1">
+                                            <strong>@libro.Titulo</strong>
+                                            @if (rank <= 3)
+                                            {
+                                                <span class="badge bg-danger ms-2">Bestseller</span>
+                                            }
+                                        </h6>
+                                        <p class="mb-2 text-muted small">
+                                            <i class="fas fa-user me-1"></i>@libro.Autor
+                                            @if (!string.IsNullOrEmpty(libro.Categoria))
+                                            {
+                                                <span class="badge bg-secondary ms-2">@libro.Categoria</span>
+                                            }
+                                        </p>
+                                        <div class="d-flex align-items-center mb-2">
+                                            <div class="progress flex-grow-1 me-2" style="height: 20px;">
+                                                <div class="progress-bar-custom" role="progressbar" style="width: @porcentaje%" aria-valuenow="@porcentaje" aria-valuemin="0" aria-valuemax="100">
+                                                    @libro.TotalPrestamos préstamos
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <small class="text-muted">
+                                            <i class="fas fa-clock text-warning me-1"></i>
+                                            @libro.PrestamosActivos ejemplar(es) actualmente prestado(s)
+                                        </small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        rank++;
+                    }
+                }
+                else
+                {
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle me-2"></i>
+                        No hay datos de préstamos disponibles en el periodo seleccionado.
+                    </div>
+                }
+            </div>
+        </div>
+    </div>
+</div>
+    
+    </div>
+    <!-- FIN PESTAÑA 3 -->
+
+    <!-- PESTAÑA 4: ESTADÍSTICAS AVANZADAS -->
+    <div class="tab-pane fade" id="estadisticas" role="tabpanel">
+        
+        <h4 class="mb-4"><i class="fas fa-chart-line me-2"></i>Estadísticas Avanzadas</h4>
+
+        <!-- Indicadores Clave de Rendimiento (KPIs) -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h5 class="mb-3"><i class="fas fa-tachometer-alt me-2 text-info"></i>Indicadores Clave (KPIs)</h5>
+            </div>
+            
+            <div class="col-md-3 mb-3">
+                <div class="card bg-gradient-primary text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50 mb-1">Índice de Rotación</h6>
+                                <h2 class="mb-0">@ViewBag.IndiceRotacion</h2>
+                                <small>préstamos/libro</small>
+                            </div>
+                            <i class="fas fa-sync-alt fa-3x opacity-50"></i>
+                        </div>
+                        <div class="progress mt-3" style="height: 5px;">
+                            <div class="progress-bar bg-white" style="width: @(Math.Min(ViewBag.IndiceRotacion * 10, 100))%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card bg-gradient-success text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50 mb-1">Eficiencia Devoluciones</h6>
+                                <h2 class="mb-0">@ViewBag.EficienciaDevoluciones%</h2>
+                                <small>del total</small>
+                            </div>
+                            <i class="fas fa-check-double fa-3x opacity-50"></i>
+                        </div>
+                        <div class="progress mt-3" style="height: 5px;">
+                            <div class="progress-bar bg-white" style="width: @ViewBag.EficienciaDevoluciones%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card bg-gradient-warning text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50 mb-1">Tasa Préstamos Activos</h6>
+                                <h2 class="mb-0">@ViewBag.TasaPrestamosActivos%</h2>
+                                <small>en circulación</small>
+                            </div>
+                            <i class="fas fa-book-reader fa-3x opacity-50"></i>
+                        </div>
+                        <div class="progress mt-3" style="height: 5px;">
+                            <div class="progress-bar bg-white" style="width: @ViewBag.TasaPrestamosActivos%"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-3 mb-3">
+                <div class="card bg-gradient-info text-white h-100">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <h6 class="text-white-50 mb-1">Promedio Préstamo</h6>
+                                <h2 class="mb-0">@Model.PromedioTiempoPrestamoEnDias</h2>
+                                <small>días</small>
+                            </div>
+                            <i class="fas fa-calendar-day fa-3x opacity-50"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Destacados -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h5 class="mb-3"><i class="fas fa-star me-2 text-warning"></i>Destacados del Periodo</h5>
+            </div>
+
+            @if (ViewBag.LibroMasSolicitado != null)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card border-primary h-100">
+                        <div class="card-header bg-primary text-white">
+                            <h6 class="mb-0"><i class="fas fa-crown me-1"></i>Libro Más Solicitado</h6>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title text-primary">@ViewBag.LibroMasSolicitado.Titulo</h5>
+                            <p class="text-muted mb-2">@ViewBag.LibroMasSolicitado.Autor</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-primary fs-6">@ViewBag.LibroMasSolicitado.TotalPrestamos préstamos</span>
+                                <span class="badge bg-secondary">@ViewBag.LibroMasSolicitado.Categoria</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (ViewBag.CategoriaMasPopular != null)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card border-success h-100">
+                        <div class="card-header bg-success text-white">
+                            <h6 class="mb-0"><i class="fas fa-bookmark me-1"></i>Categoría Más Popular</h6>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title text-success">@ViewBag.CategoriaMasPopular.Categoria</h5>
+                            <p class="text-muted mb-2">Representa el @ViewBag.CategoriaMasPopular.Porcentaje% de préstamos</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-success fs-6">@ViewBag.CategoriaMasPopular.TotalPrestamos préstamos</span>
+                                <span class="badge bg-warning text-dark">@ViewBag.CategoriaMasPopular.PrestamosActivos activos</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+
+            @if (ViewBag.UsuarioMasMoroso != null && ViewBag.UsuarioMasMoroso.PrestamosVencidos > 0)
+            {
+                <div class="col-md-4 mb-3">
+                    <div class="card border-danger h-100">
+                        <div class="card-header bg-danger text-white">
+                            <h6 class="mb-0"><i class="fas fa-exclamation-triangle me-1"></i>Usuario con Más Atrasos</h6>
+                        </div>
+                        <div class="card-body">
+                            <h5 class="card-title text-danger">@ViewBag.UsuarioMasMoroso.NombreCompleto</h5>
+                            <p class="text-muted mb-2">RUT: @ViewBag.UsuarioMasMoroso.RUT</p>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="badge bg-danger fs-6">@ViewBag.UsuarioMasMoroso.PrestamosVencidos vencidos</span>
+                                <span class="badge bg-secondary">@ViewBag.UsuarioMasMoroso.TotalPrestamos total</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            }
+        </div>
+
+        <!-- Análisis Comparativo -->
+        <div class="row mb-4">
+            <div class="col-12">
+                <h5 class="mb-3"><i class="fas fa-balance-scale me-2 text-secondary"></i>Análisis Comparativo</h5>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-chart-pie me-1"></i>Distribución de Estados</h6>
+                    </div>
+                    <div class="card-body">
+                        @if (Model.TotalPrestamos > 0)
+                        {
+                            var porcentajeActivos = Math.Round((Model.PrestamosActivos * 100.0) / Model.TotalPrestamos, 1);
+                            var porcentajeDevueltos = Math.Round((Model.TotalDevueltos * 100.0) / Model.TotalPrestamos, 1);
+                            
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span><i class="fas fa-circle text-warning me-1"></i>Préstamos Activos</span>
+                                    <strong>@Model.PrestamosActivos (@porcentajeActivos%)</strong>
+                                </div>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar bg-warning" style="width: @porcentajeActivos%">
+                                        @porcentajeActivos%
+                                    </div>
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-1">
+                                    <span><i class="fas fa-circle text-success me-1"></i>Préstamos Devueltos</span>
+                                    <strong>@Model.TotalDevueltos (@porcentajeDevueltos%)</strong>
+                                </div>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar bg-success" style="width: @porcentajeDevueltos%">
+                                        @porcentajeDevueltos%
+                                    </div>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-6 mb-3">
+                <div class="card shadow-sm">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-info-circle me-1"></i>Recomendaciones</h6>
+                    </div>
+                    <div class="card-body">
+                        <ul class="list-unstyled mb-0">
+                            @if (ViewBag.IndiceRotacion < 2)
+                            {
+                                <li class="mb-2">
+                                    <i class="fas fa-lightbulb text-warning me-2"></i>
+                                    <strong>Bajo índice de rotación:</strong> Considera promocionar más los libros disponibles.
+                                </li>
+                            }
+                            else if (ViewBag.IndiceRotacion > 5)
+                            {
+                                <li class="mb-2">
+                                    <i class="fas fa-check-circle text-success me-2"></i>
+                                    <strong>Excelente rotación:</strong> Los libros tienen alta demanda.
+                                </li>
+                            }
+                            
+                            @if (Model.PrestamosVencidos > 0)
+                            {
+                                <li class="mb-2">
+                                    <i class="fas fa-exclamation-triangle text-danger me-2"></i>
+                                    <strong>Préstamos vencidos:</strong> Realizar seguimiento inmediato a @Model.PrestamosVencidos usuario(s).
+                                </li>
+                            }
+                            
+                            @if (Model.TasaDevolucionTardia > 20)
+                            {
+                                <li class="mb-2">
+                                    <i class="fas fa-clock text-warning me-2"></i>
+                                    <strong>Alta tasa de atraso:</strong> Considerar recordatorios automáticos antes del vencimiento.
+                                </li>
+                            }
+                            else
+                            {
+                                <li class="mb-2">
+                                    <i class="fas fa-thumbs-up text-success me-2"></i>
+                                    <strong>Buena puntualidad:</strong> Los usuarios devuelven a tiempo mayormente.
+                                </li>
+                            }
+
+                            @if (ViewBag.CategoriaMasPopular != null)
+                            {
+                                <li class="mb-2">
+                                    <i class="fas fa-bookmark text-info me-2"></i>
+                                    <strong>Categoría destacada:</strong> "@ViewBag.CategoriaMasPopular.Categoria" tiene alta demanda. Ampliar colección.
+                                </li>
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tendencias Mensuales -->
+        @if (Model.EstadisticasMensuales.Any())
+        {
+            <div class="row mb-4">
+                <div class="col-12">
+                    <h5 class="mb-3"><i class="fas fa-chart-line me-2 text-primary"></i>Tendencias Mensuales</h5>
+                </div>
+                <div class="col-12">
+                    <div class="card shadow">
+                        <div class="card-header py-3 bg-gradient" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;">
+                            <h5 class="m-0 font-weight-bold">
+                                <i class="fas fa-chart-line me-2"></i>Evolución Mensual de Préstamos y Devoluciones
+                            </h5>
+                        </div>
+                        <div class="card-body">
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead>
+                                        <tr>
+                                            <th><i class="fas fa-calendar me-1"></i>Mes</th>
+                                            <th><i class="fas fa-calendar-alt me-1"></i>Año</th>
+                                            <th class="text-center"><i class="fas fa-hand-holding me-1 text-primary"></i>Total Préstamos</th>
+                                            <th class="text-center"><i class="fas fa-check-circle me-1 text-success"></i>Total Devoluciones</th>
+                                            <th class="text-center"><i class="fas fa-chart-bar me-1"></i>Tasa</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        @foreach (var stat in Model.EstadisticasMensuales)
+                                        {
+                                            var tasaDevolucion = stat.TotalPrestamos > 0 
+                                                ? Math.Round((stat.TotalDevoluciones * 100.0) / stat.TotalPrestamos, 1) 
+                                                : 0;
+                                            var colorClass = tasaDevolucion >= 80 ? "text-success" : tasaDevolucion >= 50 ? "text-warning" : "text-danger";
+                                            
+                                            <tr>
+                                                <td><strong>@stat.Mes</strong></td>
+                                                <td>@stat.Año</td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-primary">@stat.TotalPrestamos</span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <span class="badge bg-success">@stat.TotalDevoluciones</span>
+                                                </td>
+                                                <td class="text-center">
+                                                    <strong class="@colorClass">@tasaDevolucion%</strong>
+                                                    <div class="progress mt-1" style="height: 8px;">
+                                                        <div class="progress-bar @(tasaDevolucion >= 80 ? "bg-success" : tasaDevolucion >= 50 ? "bg-warning" : "bg-danger")" 
+                                                             style="width: @tasaDevolucion%"></div>
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        }
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        }
+
+    </div>
+    <!-- FIN PESTAÑA 4 -->
+
+</div>
+<!-- FIN CONTENIDO DE PESTAÑAS -->
+
+<!-- Información adicional -->
+<div class="row mt-4">
+    <div class="col-12">
+        <div class="card shadow-sm bg-light">
+            <div class="card-body text-center py-3">
+                <small class="text-muted">
+                    <i class="fas fa-sync-alt me-1"></i>
+                    Los datos se actualizan en tiempo real según el periodo seleccionado
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+

@@ -1,0 +1,314 @@
+@{
+    ViewData["Title"] = "Inventario";
+    var resultados = ViewBag.Resultados as List<dynamic> ?? new List<dynamic>();
+    var searchString = ViewBag.SearchString as string;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-boxes me-2"></i>Inventario
+    </h1>
+    <div class="d-flex gap-2">
+        <a asp-controller="Libros" asp-action="Index" class="btn btn-outline-primary">
+            <i class="fas fa-book me-1"></i>Gestionar Libros
+        </a>
+        <a asp-controller="Ejemplares" asp-action="Index" class="btn btn-outline-info">
+            <i class="fas fa-copy me-1"></i>Gestionar Ejemplares
+        </a>
+    </div>
+</div>
+
+<!-- Estadísticas rápidas -->
+<div class="row mb-4">
+    <div class="col-md-3 mb-3">
+        <div class="card border-left-primary shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-primary text-uppercase mb-1">
+                            Total Libros
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalLibros</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-book fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-left-info shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-info text-uppercase mb-1">
+                            Total Ejemplares
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.TotalEjemplares</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-copy fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-left-success shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-success text-uppercase mb-1">
+                            Disponibles
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.EjemplaresDisponibles</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-check-circle fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3 mb-3">
+        <div class="card border-left-warning shadow h-100 py-2">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-warning text-uppercase mb-1">
+                            Prestados
+                        </div>
+                        <div class="h5 mb-0 font-weight-bold text-gray-800">@ViewBag.EjemplaresPrestados</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-hand-holding fa-2x text-gray-300"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Buscador -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-search me-2"></i>Búsqueda en Inventario
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="get" asp-action="Index" class="row g-3">
+            <div class="col-md-10">
+                <input type="text" 
+                       class="form-control form-control-lg" 
+                       name="searchString" 
+                       value="@searchString" 
+                       placeholder="Buscar por título, autor, ISBN, código de barras, categoría, proveedor, notas..." 
+                       autofocus />
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary btn-lg w-100">
+                    <i class="fas fa-search me-1"></i>Buscar
+                </button>
+            </div>
+        </form>
+        @if (!string.IsNullOrEmpty(searchString))
+        {
+            <div class="mt-3">
+                <a asp-action="Index" class="btn btn-sm btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Limpiar búsqueda
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Resultados -->
+@if (!string.IsNullOrEmpty(searchString))
+{
+    <div class="card shadow">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-list me-2"></i>Resultados de búsqueda (@resultados.Count)
+            </h6>
+        </div>
+        <div class="card-body">
+            @if (resultados.Any())
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover align-middle">
+                        <thead>
+                            <tr>
+                                <th>Tipo</th>
+                                <th>Título</th>
+                                <th>Autor</th>
+                                <th>Código de Barras</th>
+                                <th>Estado</th>
+                                <th>Ubicación</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var item in resultados)
+                            {
+                                <tr>
+                                    <td>
+                                        @if (item.TipoObjeto == "Libro")
+                                        {
+                                            <span class="badge bg-primary">
+                                                <i class="fas fa-book me-1"></i>Libro
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="badge bg-info">
+                                                <i class="fas fa-copy me-1"></i>Ejemplar
+                                            </span>
+                                        }
+                                    </td>
+                                    <td>
+                                        <strong>@item.Titulo</strong>
+                                        @if (!string.IsNullOrEmpty(item.Categoria))
+                                        {
+                                            <br><small class="text-muted">@item.Categoria</small>
+                                        }
+                                    </td>
+                                    <td>@item.Autor</td>
+                                    <td>
+                                        <code>@item.CodigoBarras</code>
+                                        @if (item.TipoObjeto == "Ejemplar" && !string.IsNullOrEmpty(item.PrestadoA))
+                                        {
+                                            <br><small class="text-danger">Prestado a: @item.PrestadoA</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @{
+                                            var estadoBadgeClass = item.Estado switch
+                                            {
+                                                "Disponible" => "badge bg-success",
+                                                "Prestado" => "badge bg-danger",
+                                                "Reservado" => "badge bg-warning",
+                                                "En Reparacion" => "badge bg-info",
+                                                "Extraviado" => "badge bg-dark",
+                                                "Dado de baja" => "badge bg-secondary",
+                                                _ => "badge bg-secondary"
+                                            };
+                                        }
+                                        <span class="@estadoBadgeClass">@item.Estado</span>
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(item.Ubicacion))
+                                        {
+                                            <span class="badge bg-info text-white">
+                                                <i class="fas fa-map-marker-alt me-1"></i>@item.Ubicacion
+                                            </span>
+                                        }
+                                        else
+                                        {
+                                            <span class="text-muted">-</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (item.TipoObjeto == "Libro")
+                                        {
+                                            <a asp-controller="Libros" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-primary">
+                                                <i class="fas fa-eye me-1"></i>Ver
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <a asp-controller="Ejemplares" asp-action="Details" asp-route-id="@item.Id" class="btn btn-sm btn-outline-info">
+                                                <i class="fas fa-eye me-1"></i>Ver
+                                            </a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            }
+            else
+            {
+                <div class="alert alert-info text-center py-5">
+                    <i class="fas fa-search fa-3x mb-3 text-muted"></i>
+                    <h5>No se encontraron resultados</h5>
+                    <p class="text-muted">Intenta con otros términos de búsqueda.</p>
+                </div>
+            }
+        </div>
+    </div>
+}
+
+<!-- Accesos rápidos -->
+@if (string.IsNullOrEmpty(searchString))
+{
+    <div class="row mt-4">
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3 bg-primary text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-book me-2"></i>Gestión de Libros
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Administra los títulos de libros en tu biblioteca.</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a asp-controller="Libros" asp-action="Index" class="btn btn-primary">
+                            <i class="fas fa-list me-1"></i>Ver Todos
+                        </a>
+                        <a asp-controller="Libros" asp-action="Create" class="btn btn-outline-primary">
+                            <i class="fas fa-plus me-1"></i>Agregar Libro
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6 mb-4">
+            <div class="card shadow h-100">
+                <div class="card-header py-3 bg-info text-white">
+                    <h6 class="m-0 font-weight-bold">
+                        <i class="fas fa-copy me-2"></i>Gestión de Ejemplares
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <p class="card-text">Administra los ejemplares físicos de cada libro.</p>
+                    <div class="d-flex gap-2 flex-wrap">
+                        <a asp-controller="Ejemplares" asp-action="Index" class="btn btn-info">
+                            <i class="fas fa-list me-1"></i>Ver Todos
+                        </a>
+                        <a asp-controller="Ejemplares" asp-action="Create" class="btn btn-outline-info">
+                            <i class="fas fa-plus me-1"></i>Agregar Ejemplar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+}
+
+<style>
+    .border-left-primary {
+        border-left: 0.25rem solid #4e73df !important;
+    }
+    .border-left-info {
+        border-left: 0.25rem solid #36b9cc !important;
+    }
+    .border-left-success {
+        border-left: 0.25rem solid #1cc88a !important;
+    }
+    .border-left-warning {
+        border-left: 0.25rem solid #f6c23e !important;
+    }
+    .text-xs {
+        font-size: 0.7rem;
+    }
+    .text-gray-300 {
+        color: #dddfeb !important;
+    }
+    .text-gray-800 {
+        color: #5a5c69 !important;
+    }
+</style>
+

@@ -1,0 +1,196 @@
+@model BibliotecaVirtualWeb.Models.RegistroCirculacionViewModel
+
+@{
+    ViewData["Title"] = "Registro de Circulación";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-clipboard-list me-2"></i>Registro de Circulación
+    </h1>
+</div>
+
+<!-- Filtros y Búsqueda -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="searchString" class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="searchString" name="searchString"
+                       value="@Model.SearchString" placeholder="Libro, autor, usuario, RUT...">
+            </div>
+            <div class="col-md-3">
+                <label for="estado" class="form-label">Estado</label>
+                <select class="form-select" id="estado" name="estado">
+                    <option value="">Todos</option>
+                    <option value="Activo" selected="@(Model.EstadoSeleccionado == "Activo")">Activo</option>
+                    <option value="Devuelto" selected="@(Model.EstadoSeleccionado == "Devuelto")">Devuelto</option>
+                    <option value="Vencidos" selected="@(Model.EstadoSeleccionado == "Vencidos")">Vencidos</option>
+                    <option value="PorVencer" selected="@(Model.EstadoSeleccionado == "PorVencer")">Por Vencer</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="fechaInicio" class="form-label">Desde</label>
+                <input type="date" class="form-control" id="fechaInicio" name="fechaInicio" value="@Model.FechaInicio.ToString("yyyy-MM-dd")">
+            </div>
+            <div class="col-md-2">
+                <label for="fechaFin" class="form-label">Hasta</label>
+                <input type="date" class="form-control" id="fechaFin" name="fechaFin" value="@Model.FechaFin.ToString("yyyy-MM-dd")">
+            </div>
+            <div class="col-md-12 d-flex flex-wrap justify-content-between align-items-center">
+                <div class="btn-group mb-2" role="group">
+                    @{
+                        var rangos = new Dictionary<string, string>
+                        {
+                            { "Hoy", "Hoy" },
+                            { "Semana", "Últimos 7 días" },
+                            { "Mes", "Últimos 30 días" },
+                            { "MesActual", "Mes actual" }
+                        };
+
+                        foreach (var item in rangos)
+                        {
+                            var active = Model.RangoSeleccionado == item.Key ? "active" : string.Empty;
+                            <button type="submit" name="rango" value="@item.Key" class="btn btn-outline-primary @active">@item.Value</button>
+                        }
+                    }
+                </div>
+                <div class="d-flex gap-2 mb-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Buscar
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="fas fa-redo me-1"></i>Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumen -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm border-primary">
+            <div class="card-body">
+                <p class="text-muted mb-1">Total en rango</p>
+                <h4 class="text-primary mb-0">@Model.Resumen.TotalPrestamos</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-success">
+            <div class="card-body">
+                <p class="text-muted mb-1">Activos</p>
+                <h4 class="text-success mb-0">@Model.Resumen.PrestamosActivos</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-secondary">
+            <div class="card-body">
+                <p class="text-muted mb-1">Devueltos</p>
+                <h4 class="text-secondary mb-0">@Model.Resumen.PrestamosDevueltos</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-danger">
+            <div class="card-body">
+                <p class="text-muted mb-1">Vencidos</p>
+                <h4 class="text-danger mb-0">@Model.Resumen.PrestamosVencidos</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de Préstamos -->
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-list me-2"></i>Préstamos Registrados
+        </h6>
+    </div>
+    <div class="card-body">
+        @if (Model?.Prestamos != null && Model.Prestamos.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Libro</th>
+                            <th>Usuario</th>
+                            <th>Fecha Préstamo</th>
+                            <th>Fecha Vencimiento</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var prestamo in Model.Prestamos)
+                        {
+                            <tr class="@(prestamo.EstaVencido ? "table-danger" : prestamo.EstaPorVencer ? "table-warning" : "")">
+                                <td>
+                                    @if (prestamo.EjemplarId > 0 && prestamo.Ejemplar != null && prestamo.Ejemplar.Libro != null)
+                                    {
+                                        <strong>@prestamo.Ejemplar.Libro.Titulo</strong><br>
+                                        <small class="text-muted">@prestamo.Ejemplar.Libro.Autor</small><br>
+                                        <small class="text-info"><i class="fas fa-barcode me-1"></i>Ejemplar: @prestamo.Ejemplar.CodigoBarras</small>
+                                    }
+                                    else if (prestamo.LibroId > 0 && prestamo.Libro != null)
+                                    {
+                                        <strong>@prestamo.Libro.Titulo</strong><br>
+                                        <small class="text-muted">@prestamo.Libro.Autor</small>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Libro no disponible</span>
+                                    }
+                                </td>
+                                <td>
+                                    <strong>@prestamo.Usuario.NombreCompleto</strong><br>
+                                    <small class="text-muted">@prestamo.Usuario.RUT</small>
+                                </td>
+                                <td>@prestamo.FechaPrestamo.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    @prestamo.FechaVencimiento.ToString("dd/MM/yyyy")
+                                    @if (prestamo.EstaVencido)
+                                    {
+                                        <br><small class="text-danger"><i class="fas fa-exclamation-triangle"></i> Vencido</small>
+                                    }
+                                    else if (prestamo.EstaPorVencer)
+                                    {
+                                        <br><small class="text-warning"><i class="fas fa-clock"></i> Por vencer</small>
+                                    }
+                                </td>
+                                <td>
+                                    <span class="@prestamo.EstadoBadgeClass">@prestamo.EstadoDescripcion</span>
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group" role="group">
+                                        <a asp-action="Details" asp-route-id="@prestamo.Id" 
+                                           class="btn btn-outline-info btn-sm" title="Ver detalles">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@prestamo.Id" 
+                                           class="btn btn-outline-warning btn-sm" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="alert alert-info">
+                <i class="fas fa-info-circle me-2"></i>
+                No hay préstamos registrados que coincidan con los criterios de búsqueda.
+            </div>
+        }
+    </div>
+</div>
+

@@ -1,0 +1,48 @@
+@model BibliotecaVirtualWeb.Models.Proveedor
+
+@{
+    ViewData["Title"] = "Eliminar Proveedor";
+}
+
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-danger"><i class="fas fa-trash me-2"></i>Confirmar Eliminación</h6>
+    </div>
+    <div class="card-body">
+        <p>¿Estás seguro de que deseas eliminar al proveedor <strong>@Model.Nombre</strong>?</p>
+
+        <dl class="row">
+            <dt class="col-sm-3">Contacto</dt>
+            <dd class="col-sm-9">@Model.Contacto</dd>
+            <dt class="col-sm-3">Email</dt>
+            <dd class="col-sm-9">@Model.Email</dd>
+            <dt class="col-sm-3">Tipo</dt>
+            <dd class="col-sm-9"><span class="@Model.TipoBadgeClass">@Model.TipoDescripcion</span></dd>
+        </dl>
+
+        <form asp-action="Delete" method="post" id="deleteForm">
+            <input type="hidden" asp-for="Id" />
+            <div class="d-flex gap-2">
+                <a asp-action="Index" class="btn btn-secondary"><i class="fas fa-times me-1"></i>Cancelar</a>
+                <button type="submit" class="btn btn-danger" id="btnEliminar"><i class="fas fa-trash me-1"></i>Eliminar</button>
+            </div>
+        </form>
+    </div>
+    <div class="card-footer text-muted">
+        <i class="fas fa-exclamation-triangle me-1"></i>Esta acción no se puede deshacer.
+    </div>
+    
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('deleteForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (confirm('⚠️ ¿Estás ABSOLUTAMENTE SEGURO de que deseas eliminar este proveedor?\n\nEsta acción es permanente y no se puede deshacer.\n\nPresiona "Aceptar" para confirmar o "Cancelar" para volver.')) {
+                this.submit();
+            }
+        });
+    </script>
+}
+
+

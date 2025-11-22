@@ -1,0 +1,79 @@
+@model BibliotecaVirtualWeb.Models.Usuario
+@using Microsoft.AspNetCore.Mvc.Rendering
+@{
+    var cursos = ViewBag.Cursos as IEnumerable<SelectListItem> ?? Enumerable.Empty<SelectListItem>();
+}
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="Nombre" class="form-label"></label>
+            <input asp-for="Nombre" class="form-control" placeholder="Ingrese el nombre" />
+            <span asp-validation-for="Nombre" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="Apellido" class="form-label"></label>
+            <input asp-for="Apellido" class="form-control" placeholder="Ingrese el apellido" />
+            <span asp-validation-for="Apellido" class="text-danger"></span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="RUT" class="form-label"></label>
+            <input asp-for="RUT" class="form-control" placeholder="12345678-9" />
+            <span asp-validation-for="RUT" class="text-danger"></span>
+            <div class="form-text">Formato: 12345678-9</div>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="Estado" class="form-label"></label>
+            <select asp-for="Estado" class="form-select">
+                <option value="Activo">Activo</option>
+                <option value="Inactivo">Inactivo</option>
+            </select>
+            <span asp-validation-for="Estado" class="text-danger"></span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="Email" class="form-label"></label>
+            <input asp-for="Email" type="email" class="form-control" placeholder="usuario@email.com" />
+            <span asp-validation-for="Email" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="Telefono" class="form-label"></label>
+            <input asp-for="Telefono" class="form-control" placeholder="+56 9 1234 5678" />
+            <span asp-validation-for="Telefono" class="text-danger"></span>
+        </div>
+    </div>
+</div>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="Curso" class="form-label"></label>
+            <select asp-for="Curso" class="form-select" asp-items="cursos">
+                <option value="">Seleccione un curso</option>
+            </select>
+            <span asp-validation-for="Curso" class="text-danger"></span>
+        </div>
+    </div>
+</div>
+
+<div class="mb-3">
+    <label asp-for="Notas" class="form-label"></label>
+    <textarea asp-for="Notas" class="form-control" rows="3" placeholder="Notas adicionales sobre el usuario"></textarea>
+    <span asp-validation-for="Notas" class="text-danger"></span>
+</div>
+

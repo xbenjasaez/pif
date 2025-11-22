@@ -1,0 +1,131 @@
+@model BibliotecaVirtualWeb.Models.Prestamo
+
+@{
+    ViewData["Title"] = "Editar Registro de Circulación";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-edit me-2"></i>Editar Registro de Circulación
+    </h1>
+    <a asp-action="Index" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-calendar-alt me-2"></i>Información del Préstamo
+                </h6>
+            </div>
+            <div class="card-body">
+                <form asp-action="Edit" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+                    <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="LibroId" />
+                    <input type="hidden" asp-for="UsuarioId" />
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label class="form-label"><strong>Libro:</strong></label>
+                            <p class="form-control-plaintext">@Model.Libro.Titulo - @Model.Libro.Autor</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label"><strong>Usuario:</strong></label>
+                            <p class="form-control-plaintext">@Model.Usuario.NombreCompleto (@Model.Usuario.RUT)</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="FechaPrestamo" class="form-label"></label>
+                            <input asp-for="FechaPrestamo" type="date" class="form-control" 
+                                   value="@Model.FechaPrestamo.ToString("yyyy-MM-dd")" />
+                            <span asp-validation-for="FechaPrestamo" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="FechaVencimiento" class="form-label"></label>
+                            <input asp-for="FechaVencimiento" type="date" class="form-control" 
+                                   value="@Model.FechaVencimiento.ToString("yyyy-MM-dd")" />
+                            <span asp-validation-for="FechaVencimiento" class="text-danger"></span>
+                            <small class="form-text text-muted">Puedes modificar la fecha de vencimiento aquí</small>
+                        </div>
+                    </div>
+
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <label asp-for="Estado" class="form-label"></label>
+                            <select asp-for="Estado" class="form-select">
+                                <option value="Activo">Activo</option>
+                                <option value="Devuelto">Devuelto</option>
+                            </select>
+                            <span asp-validation-for="Estado" class="text-danger"></span>
+                        </div>
+                        <div class="col-md-6">
+                            <label asp-for="FechaDevolucion" class="form-label"></label>
+                            @if (Model.FechaDevolucion.HasValue)
+                            {
+                                <input asp-for="FechaDevolucion" type="datetime-local" class="form-control" 
+                                       value="@Model.FechaDevolucion.Value.ToString("yyyy-MM-ddTHH:mm")" />
+                            }
+                            else
+                            {
+                                <input asp-for="FechaDevolucion" type="datetime-local" class="form-control" />
+                            }
+                            <span asp-validation-for="FechaDevolucion" class="text-danger"></span>
+                            <small class="form-text text-muted">Solo necesario si el estado es "Devuelto"</small>
+                        </div>
+                    </div>
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Guardar Cambios
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header py-3 bg-info text-white">
+                <h6 class="m-0 font-weight-bold">
+                    <i class="fas fa-info-circle me-2"></i>Información
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Importante
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li>Al cambiar la <strong>fecha de vencimiento</strong>, el sistema actualizará automáticamente el estado del préstamo.</li>
+                        <li>Si cambias el estado a <strong>Devuelto</strong>, el libro se marcará como disponible automáticamente.</li>
+                        <li>La fecha de devolución se establecerá automáticamente si no la ingresas.</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-calendar me-1"></i>Días de Préstamo
+                    </h6>
+                    <p class="mb-0 small">
+                        Período estándar: <strong>15 días</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+

@@ -1,0 +1,231 @@
+@model BibliotecaVirtualWeb.Models.EjemplaresIndexViewModel
+@{
+    ViewData["Title"] = "Ejemplares";
+    var libroId = Model.LibroId;
+    var libroTitulo = Model.LibroTitulo ?? "Todos los libros";
+    var resumen = Model.Resumen ?? new BibliotecaVirtualWeb.Models.EjemplaresResumenViewModel();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-copy me-2"></i>Ejemplares
+        @if (libroId.HasValue)
+        {
+            <small class="text-muted">- @libroTitulo</small>
+        }
+    </h1>
+    <div>
+        @if (libroId.HasValue)
+        {
+            <a asp-action="Create" asp-route-libroId="@libroId" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Agregar Ejemplar
+            </a>
+            <a asp-action="CrearMultiple" asp-route-libroId="@libroId" class="btn btn-success">
+                <i class="fas fa-layer-group me-1"></i>Crear Múltiples
+            </a>
+        }
+        else
+        {
+            <a asp-action="Create" class="btn btn-primary">
+                <i class="fas fa-plus me-1"></i>Agregar Ejemplar
+            </a>
+        }
+        @if (libroId.HasValue)
+        {
+            <a asp-controller="Libros" asp-action="Details" asp-route-id="@libroId" class="btn btn-secondary">
+                <i class="fas fa-arrow-left me-1"></i>Volver al Libro
+            </a>
+        }
+    </div>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body py-3">
+                <p class="text-muted text-uppercase small mb-1">Total</p>
+                <h4 class="mb-0">@resumen.Total</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body py-3">
+                <p class="text-muted text-uppercase small mb-1">Disponibles</p>
+                <h4 class="mb-0 text-success">@resumen.Disponibles</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body py-3">
+                <p class="text-muted text-uppercase small mb-1">Prestados</p>
+                <h4 class="mb-0 text-danger">@resumen.Prestados</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-0">
+            <div class="card-body py-3">
+                <p class="text-muted text-uppercase small mb-1">Otros estados</p>
+                <h4 class="mb-0 text-warning">@resumen.Otros</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<form method="get" class="card shadow-sm border-0 mb-4">
+    <div class="card-body">
+        @if (libroId.HasValue)
+        {
+            <input type="hidden" name="libroId" value="@libroId" />
+        }
+        <div class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="busqueda" class="form-label fw-semibold">Buscar</label>
+                <div class="input-group">
+                    <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                    <input type="text"
+                           class="form-control"
+                           id="busqueda"
+                           name="busqueda"
+                           value="@Model.Busqueda"
+                           placeholder="Código, título, autor o usuario" />
+                </div>
+            </div>
+            <div class="col-md-3">
+                <label for="estado" class="form-label fw-semibold">Estado</label>
+                <select id="estado" name="estado" class="form-select">
+                    @foreach (var estado in Model.EstadosDisponibles)
+                    {
+                        var value = estado == "Todos" ? "" : estado;
+                        <option value="@value" selected="@(Model.EstadoSeleccionado == value ? "selected" : null)">
+                            @estado
+                        </option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="orden" class="form-label fw-semibold">Ordenar por</label>
+                <select id="orden" name="orden" class="form-select">
+                    <option value="recientes" selected="@(Model.OrdenSeleccionado == "recientes" ? "selected" : null)">Fecha agregado (recientes)</option>
+                    <option value="codigo" selected="@(Model.OrdenSeleccionado == "codigo" ? "selected" : null)">Código (A→Z)</option>
+                    <option value="codigo_desc" selected="@(Model.OrdenSeleccionado == "codigo_desc" ? "selected" : null)">Código (Z→A)</option>
+                    <option value="estado" selected="@(Model.OrdenSeleccionado == "estado" ? "selected" : null)">Estado</option>
+                    <option value="libro" selected="@(Model.OrdenSeleccionado == "libro" ? "selected" : null)">Libro</option>
+                    <option value="prestamo" selected="@(Model.OrdenSeleccionado == "prestamo" ? "selected" : null)">Fecha de préstamo</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-grid gap-2">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-filter me-1"></i>Aplicar
+                </button>
+                <a class="btn btn-outline-secondary" asp-action="Index" asp-route-libroId="@libroId">
+                    Limpiar
+                </a>
+            </div>
+        </div>
+    </div>
+</form>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["WarningMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card shadow">
+    <div class="card-body">
+        @if (!Model.Ejemplares.Any())
+        {
+            <div class="alert alert-info text-center">
+                <i class="fas fa-info-circle me-2"></i>
+                No hay ejemplares registrados.
+                @if (libroId.HasValue)
+                {
+                    <a asp-action="Create" asp-route-libroId="@libroId" class="alert-link">Crear el primer ejemplar</a>
+                }
+            </div>
+        }
+        else
+        {
+            <div class="table-responsive">
+                <table class="table table-striped table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Código de Barras</th>
+                            @if (!libroId.HasValue)
+                            {
+                                <th>Libro</th>
+                            }
+                            <th>Estado</th>
+                            <th>Fecha Agregado</th>
+                            <th>Prestado a</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Ejemplares)
+                        {
+                            <tr>
+                                <td>
+                                    <strong><i class="fas fa-barcode me-2"></i>@item.CodigoBarras</strong>
+                                </td>
+                                @if (!libroId.HasValue)
+                                {
+                                    <td class="text-break">
+                                        <a asp-controller="Libros" asp-action="Details" asp-route-id="@item.LibroId">
+                                            @item.Libro?.Titulo
+                                        </a>
+                                        <div class="small text-muted">@item.Libro?.Autor</div>
+                                    </td>
+                                }
+                                <td><span class="@item.EstadoBadgeClass">@item.Estado</span></td>
+                                <td>@item.FechaAgregado.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(item.PrestadoA))
+                                    {
+                                        <span class="text-danger"><i class="fas fa-user me-1"></i>@item.PrestadoA</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">-</span>
+                                    }
+                                </td>
+                                <td>
+                                    <div class="btn-group btn-group-sm">
+                                        <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-warning" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-outline-danger" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+    </div>
+</div>
+

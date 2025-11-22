@@ -1,0 +1,48 @@
+@model IEnumerable<BibliotecaVirtualWeb.Models.Proveedor>
+
+@{
+    ViewData["Title"] = "Proveedores";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary"><i class="fas fa-truck me-2"></i>Proveedores</h1>
+    <a asp-action="Create" class="btn btn-primary"><i class="fas fa-plus me-1"></i>Nuevo Proveedor</a>
+    
+</div>
+
+<div class="card shadow">
+    <div class="card-body">
+        <table class="table table-hover align-middle">
+            <thead>
+                <tr>
+                    <th>Nombre</th>
+                    <th>Contacto</th>
+                    <th>Email</th>
+                    <th>Tipo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var item in Model)
+                {
+                    <tr>
+                        <td>@item.Nombre</td>
+                        <td>@item.Contacto</td>
+                        <td>@item.Email</td>
+                        <td><span class="@item.TipoBadgeClass">@item.TipoDescripcion</span></td>
+                        <td class="text-end">
+                            <div class="btn-group">
+                                <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-info btn-sm"><i class="fas fa-eye"></i></a>
+                                <a asp-action="Edit" asp-route-id="@item.Id" class="btn btn-outline-warning btn-sm"><i class="fas fa-edit"></i></a>
+                                <a asp-action="Delete" asp-route-id="@item.Id" class="btn btn-outline-danger btn-sm"><i class="fas fa-trash"></i></a>
+                            </div>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    
+</div>
+
+

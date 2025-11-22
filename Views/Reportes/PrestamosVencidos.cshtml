@@ -1,0 +1,158 @@
+@model List<BibliotecaVirtualWeb.Models.PrestamoVencidoViewModel>
+@{
+    ViewData["Title"] = "Préstamos Vencidos - Reportes";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-danger">
+        <i class="fas fa-calendar-times me-2"></i>Préstamos Vencidos
+    </h1>
+    <a asp-action="Index" asp-route-periodo="@ViewBag.Periodo" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver a Reportes
+    </a>
+</div>
+
+<!-- Información del Filtro -->
+<div class="alert alert-danger mb-4">
+    <i class="fas fa-exclamation-triangle me-2"></i>
+    <strong>¡Atención!</strong> Los siguientes préstamos han superado su fecha de vencimiento y requieren seguimiento.
+    <br>
+    Periodo: desde <strong>@ViewBag.FechaInicio.ToString("dd/MM/yyyy")</strong> 
+    hasta <strong>@ViewBag.FechaFin.ToString("dd/MM/yyyy")</strong>
+</div>
+
+@if (Model != null && Model.Any())
+{
+    <div class="card shadow">
+        <div class="card-header py-3 bg-danger text-white">
+            <h5 class="m-0 font-weight-bold">
+                <i class="fas fa-list me-2"></i>Detalle de Préstamos Vencidos (@Model.Count())
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead class="table-danger">
+                        <tr>
+                            <th><i class="fas fa-book me-1"></i>Libro</th>
+                            <th><i class="fas fa-barcode me-1"></i>Ejemplar</th>
+                            <th><i class="fas fa-user me-1"></i>Usuario</th>
+                            <th><i class="fas fa-phone me-1"></i>Contacto</th>
+                            <th><i class="fas fa-calendar-plus me-1"></i>Préstamo</th>
+                            <th><i class="fas fa-calendar-times me-1"></i>Vencimiento</th>
+                            <th><i class="fas fa-exclamation me-1"></i>Días Vencido</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var prestamo in Model)
+                        {
+                            var alertLevel = prestamo.DiasVencido > 30 ? "table-danger" : prestamo.DiasVencido > 15 ? "table-warning" : "";
+                            
+                            <tr class="@alertLevel">
+                                <td>
+                                    <strong>@prestamo.LibroTitulo</strong>
+                                    <br>
+                                    <small class="text-muted">@prestamo.LibroAutor</small>
+                                </td>
+                                <td>
+                                    <code>@prestamo.EjemplarCodigo</code>
+                                </td>
+                                <td>
+                                    <strong>@prestamo.UsuarioNombre</strong>
+                                    <br>
+                                    <small class="text-muted">RUT: @prestamo.UsuarioRUT</small>
+                                </td>
+                                <td>
+                                    @if (!string.IsNullOrEmpty(prestamo.UsuarioTelefono))
+                                    {
+                                        <div>
+                                            <i class="fas fa-phone me-1"></i>
+                                            <a href="tel:@prestamo.UsuarioTelefono">@prestamo.UsuarioTelefono</a>
+                                        </div>
+                                    }
+                                    @if (!string.IsNullOrEmpty(prestamo.UsuarioEmail))
+                                    {
+                                        <div>
+                                            <i class="fas fa-envelope me-1"></i>
+                                            <a href="mailto:@prestamo.UsuarioEmail">@prestamo.UsuarioEmail</a>
+                                        </div>
+                                    }
+                                    @if (string.IsNullOrEmpty(prestamo.UsuarioTelefono) && string.IsNullOrEmpty(prestamo.UsuarioEmail))
+                                    {
+                                        <small class="text-muted">Sin contacto</small>
+                                    }
+                                </td>
+                                <td>@prestamo.FechaPrestamo.ToString("dd/MM/yyyy")</td>
+                                <td>@prestamo.FechaVencimiento.ToString("dd/MM/yyyy")</td>
+                                <td>
+                                    @if (prestamo.DiasVencido > 30)
+                                    {
+                                        <span class="badge bg-danger fs-6">
+                                            <i class="fas fa-fire me-1"></i>@prestamo.DiasVencido días
+                                        </span>
+                                    }
+                                    else if (prestamo.DiasVencido > 15)
+                                    {
+                                        <span class="badge bg-warning text-dark fs-6">
+                                            <i class="fas fa-exclamation-triangle me-1"></i>@prestamo.DiasVencido días
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary fs-6">
+                                            @prestamo.DiasVencido días
+                                        </span>
+                                    }
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        <div class="card-footer bg-light">
+            <div class="row text-center">
+                <div class="col-md-4">
+                    <div class="p-3">
+                        <i class="fas fa-calendar-times text-danger fa-3x mb-2"></i>
+                        <h4 class="mb-0">@ViewBag.TotalVencidos</h4>
+                        <small class="text-muted">Total Vencidos</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3">
+                        <i class="fas fa-exclamation-triangle text-warning fa-3x mb-2"></i>
+                        <h4 class="mb-0">@ViewBag.Vencidos15Dias</h4>
+                        <small class="text-muted">Vencidos +15 días</small>
+                    </div>
+                </div>
+                <div class="col-md-4">
+                    <div class="p-3">
+                        <i class="fas fa-fire text-danger fa-3x mb-2"></i>
+                        <h4 class="mb-0">@ViewBag.Vencidos30Dias</h4>
+                        <small class="text-muted">Vencidos +30 días</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="alert alert-info mt-4">
+        <h5><i class="fas fa-lightbulb me-2"></i>Recomendaciones</h5>
+        <ul class="mb-0">
+            <li>Contactar a los usuarios con préstamos vencidos lo antes posible</li>
+            <li>Los préstamos con más de 15 días de atraso requieren seguimiento urgente</li>
+            <li>Para préstamos con más de 30 días, considerar medidas adicionales</li>
+            <li>Actualizar información de contacto de usuarios sin datos</li>
+        </ul>
+    </div>
+}
+else
+{
+    <div class="alert alert-success">
+        <i class="fas fa-check-circle me-2 fa-3x"></i>
+        <h4>¡Excelente trabajo!</h4>
+        <p class="mb-0">No hay préstamos vencidos en el periodo seleccionado. Todos los usuarios han devuelto sus libros a tiempo.</p>
+    </div>
+}
+

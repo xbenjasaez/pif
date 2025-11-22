@@ -1,0 +1,122 @@
+@model BibliotecaVirtualWeb.Models.Usuario
+@{
+    ViewData["Title"] = "Agregar Usuario";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-user-plus me-2"></i>Agregar Nuevo Usuario
+    </h1>
+    <a asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver a la Lista
+    </a>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-user me-2"></i>Información del Usuario
+                </h6>
+            </div>
+            <div class="card-body">
+                <form asp-action="Create" method="post">
+                    <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
+
+                    @await Html.PartialAsync("_UsuarioForm", Model)
+
+                    <div class="d-flex justify-content-end gap-2">
+                        <a asp-action="Index" class="btn btn-secondary">
+                            <i class="fas fa-times me-1"></i>Cancelar
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-1"></i>Guardar Usuario
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">
+                    <i class="fas fa-info-circle me-2"></i>Información
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-lightbulb me-1"></i>Consejos
+                    </h6>
+                    <ul class="mb-0 small">
+                        <li>El <strong>nombre</strong>, <strong>apellido</strong> y <strong>RUT</strong> son campos obligatorios</li>
+                        <li>El <strong>RUT</strong> será validado automáticamente</li>
+                        <li>El usuario se creará con estado <strong>Activo</strong> por defecto</li>
+                        <li>El <strong>email</strong> debe tener un formato válido</li>
+                    </ul>
+                </div>
+
+                <div class="alert alert-warning">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-exclamation-triangle me-1"></i>Importante
+                    </h6>
+                    <p class="mb-0 small">
+                        El RUT debe ser único en el sistema. Si ya existe un usuario con el mismo RUT, no se podrá crear.
+                    </p>
+                </div>
+
+                <div class="alert alert-success">
+                    <h6 class="alert-heading">
+                        <i class="fas fa-check-circle me-1"></i>Validación RUT
+                    </h6>
+                    <p class="mb-0 small">
+                        El sistema validará automáticamente el dígito verificador del RUT chileno.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    
+    <script>
+        $(document).ready(function() {
+            // Validación de RUT en tiempo real
+            $('input[name="RUT"]').on('input', function() {
+                var rut = $(this).val();
+                var input = $(this);
+                
+                if (rut.length > 0) {
+                    // Formatear RUT
+                    if (rut.length > 2 && !rut.includes('-')) {
+                        var numero = rut.slice(0, -1);
+                        var dv = rut.slice(-1);
+                        if (numero.length > 0) {
+                            var formateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv;
+                            input.val(formateado);
+                        }
+                    }
+                    
+                    // Validar RUT
+                    if (validateRUT(rut)) {
+                        input.removeClass('is-invalid').addClass('is-valid');
+                        input.next('.invalid-feedback').remove();
+                    } else {
+                        input.removeClass('is-valid').addClass('is-invalid');
+                        if (!input.next('.invalid-feedback').length) {
+                            input.after('<div class="invalid-feedback">RUT inválido</div>');
+                        }
+                    }
+                } else {
+                    input.removeClass('is-valid is-invalid');
+                    input.next('.invalid-feedback').remove();
+                }
+            });
+        });
+    </script>
+}

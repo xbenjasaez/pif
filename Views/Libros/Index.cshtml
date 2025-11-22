@@ -1,0 +1,296 @@
+@model IEnumerable<BibliotecaVirtualWeb.Models.Libro>
+@{
+    ViewData["Title"] = "Libros";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-book me-2"></i>Gestión de Libros
+    </h1>
+    <div class="d-flex gap-2">
+        <a asp-action="SincronizarEstados" class="btn btn-warning" title="Sincronizar estados de libros con préstamos activos">
+            <i class="fas fa-sync-alt me-1"></i>Sincronizar Estados
+        </a>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Agregar Libro
+        </a>
+    </div>
+</div>
+
+<!-- Filtros -->
+<div class="card shadow mb-4">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-filter me-2"></i>Filtros de Búsqueda
+        </h6>
+    </div>
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="searchString" class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="searchString" name="searchString" 
+                       value="@ViewBag.SearchString" placeholder="Título, autor o ISBN...">
+            </div>
+            <div class="col-md-3">
+                <label for="categoria" class="form-label">Categoría</label>
+                <select class="form-select" id="categoria" name="categoria">
+                    <option value="">Todas las categorías</option>
+                    @foreach (var cat in ViewBag.Categorias)
+                    {
+                        <option value="@cat" selected="@(ViewBag.CategoriaSeleccionada == cat)">@cat</option>
+                    }
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="estado" class="form-label">Estado</label>
+                <select class="form-select" id="estado" name="estado">
+                    <option value="">Todos los estados</option>
+                    <option value="Disponible" selected="@(ViewBag.EstadoSeleccionado == "Disponible")">Disponible</option>
+                    <option value="Prestado" selected="@(ViewBag.EstadoSeleccionado == "Prestado")">Prestado</option>
+                    <option value="Reservado" selected="@(ViewBag.EstadoSeleccionado == "Reservado")">Reservado</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-primary me-2">
+                    <i class="fas fa-search me-1"></i>Buscar
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-times me-1"></i>Limpiar
+                </a>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Lista de Libros -->
+<div class="card shadow">
+    <div class="card-header py-3 d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-primary">
+            <i class="fas fa-list me-2"></i>Lista de Libros (@Model.Count())
+        </h6>
+        <div class="btn-group" role="group">
+            <button type="button" class="btn btn-outline-primary btn-sm" id="gridView">
+                <i class="fas fa-th"></i>
+            </button>
+            <button type="button" class="btn btn-outline-primary btn-sm active" id="listView">
+                <i class="fas fa-list"></i>
+            </button>
+        </div>
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <!-- Vista de Lista -->
+            <div id="listViewContent">
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Título</th>
+                                <th>Autor</th>
+                                <th>Categoría</th>
+                                <th>Estado</th>
+                                <th>Ubicación</th>
+                                <th>Proveedor</th>
+                                <th class="text-center">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var libro in Model)
+                            {
+                                <tr>
+                                    <td>
+                                        <div class="fw-bold">@libro.Titulo</div>
+                                        @if (!string.IsNullOrEmpty(libro.ISBN))
+                                        {
+                                            <small class="text-muted">ISBN: @libro.ISBN</small>
+                                        }
+                                    </td>
+                                    <td>@libro.Autor</td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(libro.Categoria))
+                                        {
+                                            <span class="badge bg-light text-dark">@libro.Categoria</span>
+                                        }
+                                    </td>
+                                    <td>
+                                        @{
+                                            var ejemplaresDisponibles = ViewBag.EjemplaresDisponibles as Dictionary<int, int> ?? new Dictionary<int, int>();
+                                            var cantidadDisponible = ejemplaresDisponibles.ContainsKey(libro.Id) ? ejemplaresDisponibles[libro.Id] : 0;
+                                        }
+                                        <span class="@libro.EstadoBadgeClass">@libro.Estado</span>
+                                        @if (cantidadDisponible > 0)
+                                        {
+                                            <br><small class="text-success"><i class="fas fa-check-circle me-1"></i>@cantidadDisponible disponible(s)</small>
+                                        }
+                                        else
+                                        {
+                                            <br><small class="text-danger"><i class="fas fa-exclamation-circle me-1"></i>Sin existencias Actualmente</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (!string.IsNullOrEmpty(libro.Ubicacion))
+                                        {
+                                            <small class="badge bg-info text-white">
+                                                <i class="fas fa-map-marker-alt me-1"></i>@libro.Ubicacion
+                                            </small>
+                                        }
+                                        else
+                                        {
+                                            <small class="text-muted">-</small>
+                                        }
+                                    </td>
+                                    <td>
+                                        @if (libro.Proveedor != null)
+                                        {
+                                            <small>@libro.Proveedor.Nombre</small>
+                                        }
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="btn-group" role="group">
+                                            <a asp-action="Details" asp-route-id="@libro.Id" 
+                                               class="btn btn-outline-info btn-sm" title="Ver detalles">
+                                                <i class="fas fa-eye"></i>
+                                            </a>
+                                            <a asp-action="Edit" asp-route-id="@libro.Id" 
+                                               class="btn btn-outline-warning btn-sm" title="Editar">
+                                                <i class="fas fa-edit"></i>
+                                            </a>
+                                            <a asp-action="Delete" asp-route-id="@libro.Id" 
+                                               class="btn btn-outline-danger btn-sm" title="Eliminar">
+                                                <i class="fas fa-trash"></i>
+                                            </a>
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Vista de Cuadrícula -->
+            <div id="gridViewContent" style="display: none;">
+                <div class="row">
+                    @foreach (var libro in Model)
+                    {
+                        <div class="col-lg-4 col-md-6 mb-4">
+                            <div class="card h-100 shadow-sm">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <h5 class="card-title text-truncate" title="@libro.Titulo">@libro.Titulo</h5>
+                                        <span class="@libro.EstadoBadgeClass">@libro.Estado</span>
+                                    </div>
+                                    <p class="card-text text-muted mb-2">@libro.Autor</p>
+                                    @{
+                                        var ejemplaresDisponiblesGrid = ViewBag.EjemplaresDisponibles as Dictionary<int, int> ?? new Dictionary<int, int>();
+                                        var cantidadDisponibleGrid = ejemplaresDisponiblesGrid.ContainsKey(libro.Id) ? ejemplaresDisponiblesGrid[libro.Id] : 0;
+                                    }
+                                    @if (cantidadDisponibleGrid > 0)
+                                    {
+                                        <p class="card-text mb-2">
+                                            <small class="text-success"><i class="fas fa-check-circle me-1"></i><strong>@cantidadDisponibleGrid</strong> disponible(s)</small>
+                                        </p>
+                                    }
+                                    else
+                                    {
+                                        <p class="card-text mb-2">
+                                            <small class="text-danger"><i class="fas fa-exclamation-circle me-1"></i><strong>Sin existencias Actualmente</strong></small>
+                                        </p>
+                                    }
+                                    
+                                    @if (!string.IsNullOrEmpty(libro.Categoria))
+                                    {
+                                        <span class="badge bg-light text-dark mb-2">@libro.Categoria</span>
+                                    }
+                                    
+                                    @if (!string.IsNullOrEmpty(libro.Descripcion))
+                                    {
+                                        <p class="card-text small text-muted">
+                                            @(libro.Descripcion.Length > 100 ? libro.Descripcion.Substring(0, 100) + "..." : libro.Descripcion)
+                                        </p>
+                                    }
+                                    
+                                    <div class="row text-muted small mb-3">
+                                        @if (!string.IsNullOrEmpty(libro.ISBN))
+                                        {
+                                            <div class="col-12">
+                                                <strong>ISBN:</strong> @libro.ISBN
+                                            </div>
+                                        }
+                                        @if (libro.Año.HasValue)
+                                        {
+                                            <div class="col-12">
+                                                <strong>Año:</strong> @libro.Año
+                                            </div>
+                                        }
+                                        @if (!string.IsNullOrEmpty(libro.Ubicacion))
+                                        {
+                                            <div class="col-12">
+                                                <strong>Ubicación:</strong> @libro.Ubicacion
+                                            </div>
+                                        }
+                                        @if (libro.Proveedor != null)
+                                        {
+                                            <div class="col-12">
+                                                <strong>Proveedor:</strong> @libro.Proveedor.Nombre
+                                            </div>
+                                        }
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent">
+                                    <div class="btn-group w-100" role="group">
+                                        <a asp-action="Details" asp-route-id="@libro.Id" 
+                                           class="btn btn-outline-info btn-sm">
+                                            <i class="fas fa-eye me-1"></i>Ver
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@libro.Id" 
+                                           class="btn btn-outline-warning btn-sm">
+                                            <i class="fas fa-edit me-1"></i>Editar
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@libro.Id" 
+                                           class="btn btn-outline-danger btn-sm">
+                                            <i class="fas fa-trash me-1"></i>Eliminar
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-book fa-4x text-muted mb-3"></i>
+                <h4 class="text-muted">No se encontraron libros</h4>
+                <p class="text-muted">Intenta ajustar los filtros de búsqueda o agrega algunos libros a tu biblioteca.</p>
+                <a asp-action="Create" class="btn btn-primary">
+                    <i class="fas fa-plus me-1"></i>Agregar Primer Libro
+                </a>
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        $(document).ready(function() {
+            // Cambiar vista
+            $('#gridView').click(function() {
+                $('#listViewContent').hide();
+                $('#gridViewContent').show();
+                $('#listView').removeClass('active');
+                $(this).addClass('active');
+            });
+            
+            $('#listView').click(function() {
+                $('#gridViewContent').hide();
+                $('#listViewContent').show();
+                $('#gridView').removeClass('active');
+                $(this).addClass('active');
+            });
+        });
+    </script>
+}

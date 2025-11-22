@@ -1,0 +1,99 @@
+@model BibliotecaVirtualWeb.Models.Ejemplar
+@{
+    ViewData["Title"] = "Eliminar Ejemplar";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-danger"><i class="fas fa-trash me-2"></i>Eliminar Ejemplar</h1>
+    <a asp-action="Index" asp-route-libroId="@Model.LibroId" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver
+    </a>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["WarningMessage"] != null)
+{
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["WarningMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card shadow">
+    <div class="card-body">
+        <div class="alert alert-danger">
+            <i class="fas fa-exclamation-triangle me-2"></i>
+            <strong>¿Estás seguro de que deseas eliminar este ejemplar?</strong> Esta acción no se puede deshacer.
+        </div>
+
+        <dl class="row">
+            <dt class="col-sm-3">Código de Barras</dt>
+            <dd class="col-sm-9"><strong>@Model.CodigoBarras</strong></dd>
+
+            <dt class="col-sm-3">Libro</dt>
+            <dd class="col-sm-9">@Model.Libro.Titulo</dd>
+
+            <dt class="col-sm-3">Estado</dt>
+            <dd class="col-sm-9"><span class="@Model.EstadoBadgeClass">@Model.Estado</span></dd>
+
+            <dt class="col-sm-3">Fecha Agregado</dt>
+            <dd class="col-sm-9">@Model.FechaAgregado.ToString("dd/MM/yyyy")</dd>
+
+            @if (!string.IsNullOrEmpty(Model.PrestadoA))
+            {
+                <dt class="col-sm-3">Prestado a</dt>
+                <dd class="col-sm-9"><span class="text-danger">@Model.PrestadoA</span></dd>
+            }
+        </dl>
+
+        @if (ViewBag.PrestamosActivos != null && ((List<BibliotecaVirtualWeb.Models.Prestamo>)ViewBag.PrestamosActivos).Any())
+        {
+            <div class="alert alert-warning mt-3">
+                <h5><i class="fas fa-hand-holding me-2"></i>Préstamos Activos</h5>
+                <p>Este ejemplar tiene los siguientes préstamos activos:</p>
+                <ul>
+                    @foreach (var prestamo in (List<BibliotecaVirtualWeb.Models.Prestamo>)ViewBag.PrestamosActivos)
+                    {
+                        <li>
+                            <strong>@prestamo.Usuario.NombreCompleto</strong> 
+                            (RUT: @prestamo.Usuario.RUT) - 
+                            Vence: @prestamo.FechaVencimiento.ToString("dd/MM/yyyy")
+                        </li>
+                    }
+                </ul>
+                <p class="mb-0"><strong>Debe devolver estos préstamos antes de eliminar el ejemplar.</strong></p>
+            </div>
+        }
+
+        <form asp-action="Delete" method="post" id="deleteForm">
+            <input type="hidden" asp-for="Id" />
+            <div class="d-flex justify-content-end gap-2 mt-4">
+                <a asp-action="Index" asp-route-libroId="@Model.LibroId" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i>Cancelar
+                </a>
+                <button type="submit" class="btn btn-danger" id="btnDelete">
+                    <i class="fas fa-trash me-1"></i>Eliminar Ejemplar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('deleteForm').addEventListener('submit', function(e) {
+            if (!confirm('¿Estás completamente seguro de que deseas eliminar este ejemplar? Esta acción no se puede deshacer.')) {
+                e.preventDefault();
+                return false;
+            }
+        });
+    </script>
+}
+

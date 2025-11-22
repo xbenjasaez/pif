@@ -1,0 +1,192 @@
+@model BibliotecaVirtualWeb.Models.PrestamosIndexViewModel
+
+@{
+    ViewData["Title"] = "Préstamos";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary"><i class="fas fa-hand-holding me-2"></i>Préstamos</h1>
+    <div class="d-flex flex-wrap gap-2">
+        <a asp-action="DevolucionRapida" class="btn btn-outline-warning">
+            <i class="fas fa-barcode me-1"></i>Devolución Rápida
+        </a>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Nuevo Préstamo
+        </a>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Filtros -->
+<div class="card shadow mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="searchString" class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="searchString" name="searchString"
+                       value="@Model.SearchString" placeholder="Libro, usuario, RUT, curso...">
+            </div>
+            <div class="col-md-3">
+                <label for="estado" class="form-label">Estado</label>
+                <select class="form-select" id="estado" name="estado">
+                    <option value="">Todos</option>
+                    <option value="Activo" selected="@(Model.EstadoSeleccionado == "Activo")">Activos</option>
+                    <option value="Devuelto" selected="@(Model.EstadoSeleccionado == "Devuelto")">Devueltos</option>
+                    <option value="Vencidos" selected="@(Model.EstadoSeleccionado == "Vencidos")">Vencidos</option>
+                    <option value="PorVencer" selected="@(Model.EstadoSeleccionado == "PorVencer")">Por vencer (próx. 3 días)</option>
+                </select>
+            </div>
+            <div class="col-md-5 d-flex flex-wrap gap-2 justify-content-end">
+                <div class="btn-group" role="group" aria-label="Estados rápidos">
+                    @{
+                        var chips = new Dictionary<string, string>
+                        {
+                            { "", "Todos" },
+                            { "Activo", "Activos" },
+                            { "Vencidos", "Vencidos" },
+                            { "PorVencer", "Por vencer" },
+                            { "Devuelto", "Devueltos" }
+                        };
+                        foreach (var chip in chips)
+                        {
+                            var active = Model.EstadoSeleccionado == chip.Key ? "active" : string.Empty;
+                            <button type="submit" name="estado" value="@chip.Key" class="btn btn-outline-primary @active">@chip.Value</button>
+                        }
+                    }
+                </div>
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i>Filtrar
+                    </button>
+                    <a asp-action="Index" class="btn btn-secondary">
+                        <i class="fas fa-redo me-1"></i>Limpiar
+                    </a>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resumen -->
+<div class="row g-3 mb-4">
+    <div class="col-md-3">
+        <div class="card shadow-sm border-primary">
+            <div class="card-body">
+                <p class="text-muted mb-1">Total encontrados</p>
+                <h4 class="text-primary mb-0">@Model.Resumen.Total</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-success">
+            <div class="card-body">
+                <p class="text-muted mb-1">Activos</p>
+                <h4 class="text-success mb-0">@Model.Resumen.Activos</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-secondary">
+            <div class="card-body">
+                <p class="text-muted mb-1">Devueltos</p>
+                <h4 class="text-secondary mb-0">@Model.Resumen.Devueltos</h4>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card shadow-sm border-danger">
+            <div class="card-body">
+                <p class="text-muted mb-1">Vencidos</p>
+                <h4 class="text-danger mb-0">@Model.Resumen.Vencidos</h4>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista -->
+<div class="card shadow">
+    <div class="card-body">
+        @if (Model.Prestamos != null && Model.Prestamos.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Libro</th>
+                            <th>Usuario</th>
+                            <th>Prestado</th>
+                            <th>Vence</th>
+                            <th>Estado</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var item in Model.Prestamos)
+                        {
+                            <tr class="@(item.EstaVencido ? "table-danger" : item.EstaPorVencer ? "table-warning" : string.Empty)">
+                                <td>
+                                    @if (item.EjemplarId > 0 && item.Ejemplar != null && item.Ejemplar.Libro != null)
+                                    {
+                                        <strong>@item.Ejemplar.Libro.Titulo</strong>
+                                        <br />
+                                        <small class="text-muted">Ejemplar: @item.Ejemplar.CodigoBarras</small>
+                                    }
+                                    else if (item.LibroId > 0 && item.Libro != null)
+                                    {
+                                        <strong>@item.Libro.Titulo</strong>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-muted">Libro no disponible</span>
+                                    }
+                                </td>
+                                <td>
+                                    <strong>@item.Usuario.NombreCompleto</strong><br />
+                                    <small class="text-muted">@item.Usuario.RUT @if(!string.IsNullOrEmpty(item.Usuario.Curso)){<text> · @item.Usuario.Curso</text>}</small>
+                                </td>
+                                <td>@item.FechaPrestamo.ToString("dd/MM/yyyy")</td>
+                                <td>@item.FechaVencimiento.ToString("dd/MM/yyyy")</td>
+                                <td><span class="@item.EstadoBadgeClass">@item.EstadoDescripcion</span></td>
+                                <td class="text-end">
+                                    <div class="btn-group">
+                                        <a asp-action="Details" asp-route-id="@item.Id" class="btn btn-outline-info btn-sm" title="Ver detalles">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        @if (item.Estado == "Activo")
+                                        {
+                                            <form asp-action="Devolver" asp-route-id="@item.Id" method="post" class="d-inline">
+                                                <button type="submit" class="btn btn-outline-success btn-sm" title="Registrar devolución"><i class="fas fa-undo"></i></button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center text-muted py-4">
+                <i class="fas fa-info-circle fa-2x mb-3"></i>
+                <p>No se encontraron préstamos con los filtros seleccionados.</p>
+            </div>
+        }
+    </div>
+</div>

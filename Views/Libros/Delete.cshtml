@@ -1,0 +1,71 @@
+@model BibliotecaVirtualWeb.Models.Libro
+
+@{
+    ViewData["Title"] = "Eliminar Libro";
+}
+
+<div class="card shadow">
+    <div class="card-header py-3">
+        <h6 class="m-0 font-weight-bold text-danger"><i class="fas fa-trash me-2"></i>Confirmar Eliminación</h6>
+    </div>
+    <div class="card-body">
+        @if (TempData["WarningMessage"] != null)
+        {
+            <div class="alert alert-warning alert-dismissible fade show mb-3" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>@TempData["WarningMessage"]
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        }
+
+        @if (ViewBag.PrestamosActivos != null)
+        {
+            var prestamos = ViewBag.PrestamosActivos as IEnumerable<BibliotecaVirtualWeb.Models.Prestamo>;
+            <div class="alert alert-danger mb-3">
+                <h6 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>Préstamos Activos</h6>
+                <p class="mb-2">Este libro está actualmente prestado a:</p>
+                <ul class="mb-0">
+                    @foreach (var p in prestamos)
+                    {
+                        <li><strong>@p.Usuario.NombreCompleto</strong> (RUT: @p.Usuario.RUT) - Vence: @p.FechaVencimiento.ToString("dd/MM/yyyy")</li>
+                    }
+                </ul>
+                <hr>
+                <p class="mb-0"><small>Debe devolver estos préstamos desde el apartado "Préstamos" o "Registro de Circulación" antes de eliminar el libro.</small></p>
+            </div>
+        }
+
+        <p>¿Estás seguro de que deseas eliminar el libro <strong>@Model.Titulo</strong> de <strong>@Model.Autor</strong>?</p>
+
+        <dl class="row">
+            <dt class="col-sm-3">ISBN</dt>
+            <dd class="col-sm-9">@Model.ISBN</dd>
+            <dt class="col-sm-3">Estado</dt>
+            <dd class="col-sm-9"><span class="@Model.EstadoBadgeClass">@Model.Estado</span></dd>
+        </dl>
+
+        <form asp-action="Delete" method="post" id="deleteForm">
+            <input type="hidden" asp-for="Id" />
+            <div class="d-flex gap-2">
+                <a asp-action="Index" class="btn btn-secondary"><i class="fas fa-times me-1"></i>Cancelar</a>
+                <button type="submit" class="btn btn-danger" id="btnEliminar"><i class="fas fa-trash me-1"></i>Eliminar</button>
+            </div>
+        </form>
+    </div>
+    <div class="card-footer text-muted">
+        <i class="fas fa-exclamation-triangle me-1"></i>Esta acción no se puede deshacer.
+    </div>
+    
+</div>
+
+@section Scripts {
+    <script>
+        document.getElementById('deleteForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            if (confirm('⚠️ ¿Estás ABSOLUTAMENTE SEGURO de que deseas eliminar este libro?\n\nEsta acción es permanente y no se puede deshacer.\n\nPresiona "Aceptar" para confirmar o "Cancelar" para volver.')) {
+                this.submit();
+            }
+        });
+    </script>
+}
+
+

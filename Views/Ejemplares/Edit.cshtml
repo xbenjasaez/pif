@@ -1,0 +1,77 @@
+@model BibliotecaVirtualWeb.Models.Ejemplar
+@{
+    ViewData["Title"] = "Editar Ejemplar";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary"><i class="fas fa-edit me-2"></i>Editar Ejemplar</h1>
+    <a asp-action="Index" asp-route-libroId="@Model.LibroId" class="btn btn-secondary">
+        <i class="fas fa-arrow-left me-1"></i>Volver
+    </a>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="card shadow">
+    <div class="card-body">
+        @if (Model.Libro != null)
+        {
+            <div class="alert alert-info mb-4">
+                <i class="fas fa-book me-2"></i>
+                <strong>Libro:</strong> @Model.Libro.Titulo
+            </div>
+        }
+
+        <form asp-action="Edit" method="post">
+            <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
+            
+            <input type="hidden" name="Id" id="Id" value="@Model.Id" />
+            <input type="hidden" name="LibroId" id="LibroId" value="@Model.LibroId" />
+
+            <div class="mb-3">
+                <label asp-for="CodigoBarras" class="form-label">Código de Barras</label>
+                <input asp-for="CodigoBarras" class="form-control" />
+                <span asp-validation-for="CodigoBarras" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Estado" class="form-label">Estado</label>
+                <select asp-for="Estado" class="form-select">
+                    <option value="Disponible">Disponible</option>
+                    <option value="Prestado">Prestado</option>
+                    <option value="Reservado">Reservado</option>
+                    <option value="En Reparacion">En Reparación</option>
+                    <option value="Extraviado">Extraviado</option>
+                    <option value="Dado de baja">Dado de baja</option>
+                </select>
+                <span asp-validation-for="Estado" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
+                <label asp-for="Notas" class="form-label">Notas</label>
+                <textarea asp-for="Notas" class="form-control" rows="3"></textarea>
+                <span asp-validation-for="Notas" class="text-danger"></span>
+            </div>
+
+            <div class="d-flex justify-content-end gap-2">
+                <a asp-action="Index" asp-route-libroId="@Model.LibroId" class="btn btn-secondary">
+                    <i class="fas fa-times me-1"></i>Cancelar
+                </a>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save me-1"></i>Guardar Cambios
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
+
