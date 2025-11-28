@@ -2,8 +2,10 @@ using Microsoft.EntityFrameworkCore;
 using Pomelo.EntityFrameworkCore.MySql.Infrastructure;
 using BibliotecaVirtualWeb.Data;
 using BibliotecaVirtualWeb.Models;
+using BibliotecaVirtualWeb.Services;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Authorization;
 using Microsoft.AspNetCore.Http;
 
@@ -16,6 +18,12 @@ builder.Services.AddControllersWithViews(options =>
         .RequireAuthenticatedUser()
         .Build();
     options.Filters.Add(new AuthorizeFilter(policy));
+    options.Filters.Add(new ResponseCacheAttribute
+    {
+        NoStore = true,
+        Location = ResponseCacheLocation.None,
+        Duration = 0
+    });
 });
 
 builder.Services.AddAntiforgery(options =>
@@ -31,9 +39,6 @@ var environment = builder.Environment.EnvironmentName?.Trim(); // Eliminar espac
 var productionConfigPath = Path.Combine(builder.Environment.ContentRootPath, "appsettings.Production.json");
 IConfiguration? effectiveConfiguration = builder.Configuration;
 
-// IMPORTANTE: ASP.NET Core carga automáticamente appsettings.json y appsettings.{Environment}.json
-// Si el entorno es "Production", cargará appsettings.Production.json que sobrescribe appsettings.json
-// Para desarrollo local, necesitamos leer directamente de appsettings.json para evitar que Production.json sobrescriba
 
 // Log de archivos de configuración cargados
 Console.WriteLine("=== Archivos de Configuración ===");
@@ -61,8 +66,7 @@ else
     Console.WriteLine($"✗ appsettings.json NO encontrado en: {baseConfigPath}");
 }
 
-// Obtener valores de configuración
-// Si estamos en Production, leer directamente del archivo de producción para asegurar que se use
+
 string connectionString;
 
 Console.WriteLine($"\n=== DEBUG: Verificación de Entorno ===");
@@ -254,11 +258,11 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
         options.User.RequireUniqueEmail = true;
         options.SignIn.RequireConfirmedEmail = false;
         // Contraseñas más seguras
-        options.Password.RequireDigit = true;                    // ✅ Requiere al menos un número
-        options.Password.RequireNonAlphanumeric = true;         // ✅ Requiere al menos un carácter especial (!@#$%^&*)
-        options.Password.RequireUppercase = true;               // ✅ Requiere al menos una mayúscula
-        options.Password.RequireLowercase = true;                // ✅ Requiere al menos una minúscula
-        options.Password.RequiredLength = 8;                    // ✅ Mínimo 8 caracteres (antes era 6)
+        options.Password.RequireDigit = true;                    //  Requiere al menos un número
+        options.Password.RequireNonAlphanumeric = true;         //  Requiere al menos un carácter especial (!@#$%^&*)
+        options.Password.RequireUppercase = true;               //  Requiere al menos una mayúscula
+        options.Password.RequireLowercase = true;                //  Requiere al menos una minúscula
+        options.Password.RequiredLength = 8;                    //  Mínimo 8 caracteres (antes era 6)
         options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(5);
         options.Lockout.MaxFailedAccessAttempts = 5;
     })
@@ -295,6 +299,7 @@ builder.Services.PostConfigure<Microsoft.AspNetCore.Antiforgery.AntiforgeryOptio
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<BibliotecaVirtualWeb.Services.IAuditoriaService, BibliotecaVirtualWeb.Services.AuditoriaService>();
 builder.Services.AddScoped<BibliotecaVirtualWeb.Services.IAlertaSistemaService, BibliotecaVirtualWeb.Services.AlertaSistemaService>();
+builder.Services.AddSingleton<ReportesPdfRenderer>();
 
 var app = builder.Build();
 

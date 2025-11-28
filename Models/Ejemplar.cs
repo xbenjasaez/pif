@@ -33,6 +33,10 @@ namespace BibliotecaVirtualWeb.Models
         [Display(Name = "Notas")]
         public string? Notas { get; set; }
 
+        [StringLength(100, ErrorMessage = "La ubicación no puede exceder 100 caracteres")]
+        [Display(Name = "Ubicación")]
+        public string? Ubicacion { get; set; }
+
         // Navegación
         [ForeignKey("LibroId")]
         public virtual Libro? Libro { get; set; }

@@ -4,6 +4,7 @@ using BibliotecaVirtualWeb.Data;
 using BibliotecaVirtualWeb.Models;
 using BibliotecaVirtualWeb.Services;
 using Microsoft.AspNetCore.Authorization;
+using BibliotecaVirtualWeb.Helpers;
 
 namespace BibliotecaVirtualWeb.Controllers
 {
@@ -163,8 +164,12 @@ namespace BibliotecaVirtualWeb.Controllers
                 return Json(new { success = false, message = "Debes proporcionar el código del ejemplar y el RUT del usuario." });
             }
 
-            var codigo = request.CodigoBarras.Trim();
+            if (!TryNormalizarCodigo(request.CodigoBarras, out var codigo, out var errorCodigo))
+            {
+                return Json(new { success = false, message = errorCodigo });
+            }
             var rutUsuario = request.RutUsuario.Trim();
+            var rutNormalizado = NormalizarRut(rutUsuario);
 
             // Buscar ejemplar
             var ejemplar = await _context.Ejemplares
@@ -188,8 +193,15 @@ namespace BibliotecaVirtualWeb.Controllers
             // Buscar usuario por RUT o ID
             Usuario? usuario = null;
             
-            // Intentar buscar por RUT primero
-            usuario = await _context.Usuarios.FirstOrDefaultAsync(u => u.RUT == rutUsuario);
+            if (!string.IsNullOrWhiteSpace(rutNormalizado))
+            {
+                usuario = await _context.Usuarios
+                    .FirstOrDefaultAsync(u => u.RUT != null &&
+                        u.RUT.Replace(".", string.Empty)
+                            .Replace("-", string.Empty)
+                            .Replace(" ", string.Empty)
+                            .ToUpper() == rutNormalizado);
+            }
             
             // Si no se encuentra por RUT, intentar por ID
             if (usuario == null && int.TryParse(rutUsuario, out int usuarioId))
@@ -230,7 +242,12 @@ namespace BibliotecaVirtualWeb.Controllers
                 
                 // Actualizar estado del ejemplar
                 ejemplar.Estado = "Prestado";
+                ejemplar.PrestadoA = usuario.NombreCompleto;
+                ejemplar.FechaPrestamo = prestamo.FechaPrestamo;
                 _context.Update(ejemplar);
+
+                usuario.PrestamosActivos++;
+                _context.Update(usuario);
 
                 await _context.SaveChangesAsync();
                 await _auditoria.RegistrarAsync(
@@ -269,14 +286,14 @@ namespace BibliotecaVirtualWeb.Controllers
         [HttpGet]
         public async Task<IActionResult> BuscarEjemplar(string codigoBarras)
         {
-            if (string.IsNullOrWhiteSpace(codigoBarras))
+            if (!TryNormalizarCodigo(codigoBarras, out var codigoNormalizado, out var errorCodigo))
             {
-                return Json(new { success = false, message = "Código de barras no puede estar vacío." });
+                return Json(new { success = false, message = errorCodigo });
             }
 
             var ejemplar = await _context.Ejemplares
                 .Include(e => e.Libro)
-                .FirstOrDefaultAsync(e => e.CodigoBarras == codigoBarras.Trim());
+                .FirstOrDefaultAsync(e => e.CodigoBarras == codigoNormalizado);
 
             if (ejemplar == null)
             {
@@ -573,7 +590,10 @@ namespace BibliotecaVirtualWeb.Controllers
                 return Json(new { success = false, message = "Debes escanear un código de barras válido." });
             }
 
-            var codigo = request.CodigoBarras.Trim();
+            if (!TryNormalizarCodigo(request.CodigoBarras, out var codigo, out var errorCodigo))
+            {
+                return Json(new { success = false, message = errorCodigo });
+            }
 
             var ejemplar = await _context.Ejemplares
                 .Include(e => e.Libro)
@@ -726,6 +746,51 @@ namespace BibliotecaVirtualWeb.Controllers
         }
 
         [HttpGet]
+        public async Task<IActionResult> ObtenerUsuarioPorRut(string valor)
+        {
+            if (string.IsNullOrWhiteSpace(valor))
+            {
+                return Json(new { success = false, message = "Ingresa un RUT o ID para buscar." });
+            }
+
+            var rutNormalizado = NormalizarRut(valor);
+            Usuario? usuario = null;
+
+            if (!string.IsNullOrWhiteSpace(rutNormalizado))
+            {
+                usuario = await _context.Usuarios
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(u => u.RUT != null &&
+                        u.RUT.Replace(".", string.Empty)
+                             .Replace("-", string.Empty)
+                             .Replace(" ", string.Empty)
+                             .ToUpper() == rutNormalizado);
+            }
+
+            if (usuario == null && int.TryParse(valor.Trim(), out var usuarioId))
+            {
+                usuario = await _context.Usuarios.AsNoTracking().FirstOrDefaultAsync(u => u.Id == usuarioId);
+            }
+
+            if (usuario == null)
+            {
+                return Json(new { success = false, message = "No encontramos ningún usuario con ese RUT o ID." });
+            }
+
+            return Json(new
+            {
+                success = true,
+                usuario = new
+                {
+                    id = usuario.Id,
+                    nombreCompleto = $"{usuario.Nombre} {usuario.Apellido}".Trim(),
+                    rut = usuario.RUT,
+                    curso = usuario.Curso
+                }
+            });
+        }
+
+        [HttpGet]
         public async Task<IActionResult> BuscarEjemplaresDisponibles(string termino)
         {
             if (string.IsNullOrWhiteSpace(termino) || termino.Trim().Length < 2)
@@ -813,6 +878,45 @@ namespace BibliotecaVirtualWeb.Controllers
                 usuario.PrestamosActivos--;
             }
             _context.Entry(usuario).State = EntityState.Modified;
+        }
+
+        private static string NormalizarRut(string? rut)
+        {
+            if (string.IsNullOrWhiteSpace(rut))
+            {
+                return string.Empty;
+            }
+
+            var cleaned = new string(rut.Where(char.IsLetterOrDigit).Select(char.ToUpperInvariant).ToArray());
+
+            if (cleaned.All(char.IsDigit) && cleaned.Length >= 12)
+            {
+                cleaned = cleaned[..^1];
+            }
+
+            cleaned = cleaned.TrimStart('0');
+            return cleaned;
+        }
+
+        private bool TryNormalizarCodigo(string? input, out string codigoNormalizado, out string error)
+        {
+            codigoNormalizado = string.Empty;
+            error = string.Empty;
+
+            if (string.IsNullOrWhiteSpace(input))
+            {
+                error = "Debes ingresar un código de barras válido.";
+                return false;
+            }
+
+            if (Ean13Helper.TryNormalize(input.Trim(), out var codigo, out var helperError))
+            {
+                codigoNormalizado = codigo;
+                return true;
+            }
+
+            error = helperError;
+            return false;
         }
 
         public class DevolucionPorCodigoRequest

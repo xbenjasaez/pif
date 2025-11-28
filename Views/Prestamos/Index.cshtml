@@ -35,20 +35,36 @@
 <!-- Filtros -->
 <div class="card shadow mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3 align-items-end">
+        <form method="get" id="formFiltros" class="row g-3 align-items-end">
+            <input type="hidden" id="estadoHidden" name="estado" value="@Model.EstadoSeleccionado" />
             <div class="col-md-4">
                 <label for="searchString" class="form-label">Buscar</label>
                 <input type="text" class="form-control" id="searchString" name="searchString"
                        value="@Model.SearchString" placeholder="Libro, usuario, RUT, curso...">
             </div>
             <div class="col-md-3">
-                <label for="estado" class="form-label">Estado</label>
-                <select class="form-select" id="estado" name="estado">
-                    <option value="">Todos</option>
-                    <option value="Activo" selected="@(Model.EstadoSeleccionado == "Activo")">Activos</option>
-                    <option value="Devuelto" selected="@(Model.EstadoSeleccionado == "Devuelto")">Devueltos</option>
-                    <option value="Vencidos" selected="@(Model.EstadoSeleccionado == "Vencidos")">Vencidos</option>
-                    <option value="PorVencer" selected="@(Model.EstadoSeleccionado == "PorVencer")">Por vencer (próx. 3 días)</option>
+                <label for="estadoSelect" class="form-label">Estado</label>
+                <select class="form-select" id="estadoSelect">
+                    @{
+                        var opcionesEstado = new[] {
+                            ("", "Todos"),
+                            ("Activo", "Activos"),
+                            ("Devuelto", "Devueltos"),
+                            ("Vencidos", "Vencidos"),
+                            ("PorVencer", "Por vencer (próx. 3 días)")
+                        };
+                    }
+                    @foreach (var (valor, texto) in opcionesEstado)
+                    {
+                        if (Model.EstadoSeleccionado == valor)
+                        {
+                            <option value="@valor" selected>@texto</option>
+                        }
+                        else
+                        {
+                            <option value="@valor">@texto</option>
+                        }
+                    }
                 </select>
             </div>
             <div class="col-md-5 d-flex flex-wrap gap-2 justify-content-end">
@@ -65,7 +81,7 @@
                         foreach (var chip in chips)
                         {
                             var active = Model.EstadoSeleccionado == chip.Key ? "active" : string.Empty;
-                            <button type="submit" name="estado" value="@chip.Key" class="btn btn-outline-primary @active">@chip.Value</button>
+                            <button type="button" class="btn btn-outline-primary btn-estado-chip @active" data-estado="@chip.Key">@chip.Value</button>
                         }
                     }
                 </div>
@@ -190,3 +206,41 @@
         }
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const form = document.getElementById('formFiltros');
+            const estadoHidden = document.getElementById('estadoHidden');
+            const estadoSelect = document.getElementById('estadoSelect');
+            const chips = document.querySelectorAll('.btn-estado-chip');
+
+            // Sincronizar select con hidden
+            estadoSelect.addEventListener('change', function () {
+                estadoHidden.value = this.value;
+                updateChipsActive();
+            });
+
+            // Click en chips
+            chips.forEach(chip => {
+                chip.addEventListener('click', function () {
+                    const estado = this.dataset.estado;
+                    estadoHidden.value = estado;
+                    estadoSelect.value = estado;
+                    form.submit();
+                });
+            });
+
+            function updateChipsActive() {
+                const currentEstado = estadoHidden.value;
+                chips.forEach(chip => {
+                    if (chip.dataset.estado === currentEstado) {
+                        chip.classList.add('active');
+                    } else {
+                        chip.classList.remove('active');
+                    }
+                });
+            }
+        });
+    </script>
+}

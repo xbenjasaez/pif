@@ -60,9 +60,12 @@
 
                 <!-- Paso 2: Información del Libro y Usuario -->
                 <div id="paso2" class="d-none">
-                    <div class="alert alert-success mb-3">
-                        <i class="fas fa-check-circle me-2"></i>
-                        Ejemplar encontrado: <strong id="libroSeleccionado"></strong>
+                    <div class="alert alert-success mb-3 d-flex flex-column">
+                        <div>
+                            <i class="fas fa-check-circle me-2"></i>
+                            Ejemplar encontrado: <strong id="libroSeleccionado"></strong>
+                        </div>
+                        <small class="text-muted mt-1">Código: <span id="libroCodigoSeleccionado"></span></small>
                     </div>
 
                     <label for="usuarioInput" class="form-label fw-semibold">
@@ -77,6 +80,10 @@
                                autocomplete="off" />
                     </div>
                     <div id="sugerenciasUsuarios" class="list-group shadow-sm d-none mb-2"></div>
+                    <div class="alert alert-info d-none" id="usuarioEscaneadoAlert">
+                        <i class="fas fa-user-check me-2"></i>
+                        <span id="usuarioEscaneadoTexto"></span>
+                    </div>
                     <div class="form-text" id="usuarioSeleccionadoInfo"></div>
 
                     <button type="button" class="btn btn-primary btn-lg w-100" id="btnCrearPrestamo">
@@ -178,6 +185,7 @@
             const paso1 = document.getElementById('paso1');
             const paso2 = document.getElementById('paso2');
             const libroSeleccionado = document.getElementById('libroSeleccionado');
+            const libroCodigoSeleccionado = document.getElementById('libroCodigoSeleccionado');
             const resultadoExito = document.getElementById('resultadoExito');
             const resultadoError = document.getElementById('resultadoError');
             const detallePrestamo = document.getElementById('detallePrestamo');
@@ -191,6 +199,8 @@
             const historialBody = document.getElementById('historialPrestamos');
             const historialVacio = document.getElementById('historialVacio');
             const contadorPrestamos = document.getElementById('contadorPrestamos');
+            const usuarioEscaneadoAlert = document.getElementById('usuarioEscaneadoAlert');
+            const usuarioEscaneadoTexto = document.getElementById('usuarioEscaneadoTexto');
             const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
             const token = tokenInput ? tokenInput.value : '';
 
@@ -199,6 +209,7 @@
             let historial = [];
             let prestamosHoy = 0;
             let buscarUsuarioTimeout;
+            let buscarUsuarioRutTimeout;
             let buscarEjemplarManualTimeout;
 
             function ocultarMensajes() {
@@ -206,6 +217,7 @@
                 resultadoExito.classList.add('d-none');
                 resultadoError.classList.add('d-none');
                 detallePrestamo.classList.add('d-none');
+                usuarioEscaneadoAlert.classList.add('d-none');
             }
 
             function escapeHtml(value) {
@@ -238,6 +250,17 @@
                 }
             }
 
+            function mostrarUsuarioEscaneado(usuario) {
+                if (usuario) {
+                    const cursoTexto = usuario.curso ? ` · Curso: ${usuario.curso}` : '';
+                    usuarioEscaneadoTexto.textContent = `${usuario.nombreCompleto} (${usuario.rut})${cursoTexto}`;
+                    usuarioEscaneadoAlert.classList.remove('d-none');
+                } else {
+                    usuarioEscaneadoAlert.classList.add('d-none');
+                    usuarioEscaneadoTexto.textContent = '';
+                }
+            }
+
             function mostrarMensaje(elemento, mensaje) {
                 elemento.innerHTML = mensaje;
                 elemento.classList.remove('d-none');
@@ -256,6 +279,7 @@
                 ocultarSugerencias();
                 ocultarSugerenciasEjemplares();
                 mostrarUsuarioSeleccionado(null);
+                mostrarUsuarioEscaneado(null);
             }
 
             function buscarEjemplar(codigo) {
@@ -274,6 +298,7 @@
                             libroSeleccionado.textContent = autorNombre
                                 ? `${libroNombre} — ${autorNombre}`
                                 : libroNombre;
+                        libroCodigoSeleccionado.textContent = data.ejemplar?.codigoBarras || '';
                             paso1.classList.add('d-none');
                             paso2.classList.remove('d-none');
                             usuarioInput.focus();
@@ -341,6 +366,33 @@
                 detalleFechaPrestamo.textContent = data.fechaPrestamo ? new Date(data.fechaPrestamo).toLocaleDateString() : '';
                 detalleFechaVencimiento.textContent = data.fechaVencimiento ? new Date(data.fechaVencimiento).toLocaleDateString() : '';
                 detallePrestamo.classList.remove('d-none');
+            }
+
+            function consultarUsuarioEscaneado(valor) {
+                if (!valor || valor.length < 4) {
+                    mostrarUsuarioEscaneado(null);
+                    return;
+                }
+
+                fetch(`/Prestamos/ObtenerUsuarioPorRut?valor=${encodeURIComponent(valor)}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success && data.usuario) {
+                            usuarioSeleccionado = data.usuario;
+                            mostrarUsuarioEscaneado(data.usuario);
+                            mostrarUsuarioSeleccionado({
+                                nombreCompleto: data.usuario.nombreCompleto,
+                                rut: data.usuario.rut,
+                                curso: data.usuario.curso
+                            });
+                        } else {
+                            mostrarUsuarioEscaneado(null);
+                            if (data.message) {
+                                usuarioSeleccionadoInfo.textContent = data.message;
+                            }
+                        }
+                    })
+                    .catch(() => mostrarUsuarioEscaneado(null));
             }
 
             function actualizarHistorial(data) {
@@ -456,16 +508,21 @@
 
                 if (value.length < 2) {
                     ocultarSugerencias();
+                    mostrarUsuarioEscaneado(null);
                     return;
                 }
 
                 clearTimeout(buscarUsuarioTimeout);
                 buscarUsuarioTimeout = setTimeout(() => cargarSugerenciasUsuarios(value), 250);
+
+                clearTimeout(buscarUsuarioRutTimeout);
+                buscarUsuarioRutTimeout = setTimeout(() => consultarUsuarioEscaneado(value), 400);
             });
 
             usuarioInput.addEventListener('keypress', function (e) {
                 if (e.key === 'Enter') {
                     e.preventDefault();
+                    consultarUsuarioEscaneado(this.value.trim());
                     crearPrestamo();
                 }
             });

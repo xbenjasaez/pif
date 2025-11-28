@@ -1,0 +1,144 @@
+@model IEnumerable<BibliotecaVirtualWeb.Models.Usuario>
+@{
+    Layout = null;
+    var alumnos = Model.ToList();
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Credenciales de alumnos</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: #f5f5f5;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 2rem;
+        }
+        .page {
+            display: grid;
+            grid-template-columns: repeat(2, 8.5cm);
+            grid-template-rows: repeat(2, 5.4cm);
+            gap: 1cm;
+            margin-bottom: 1.5cm;
+            page-break-after: always;
+            justify-content: center;
+        }
+        .card {
+            width: 8.5cm;
+            height: 5.4cm;
+            padding: 0.55cm 0.7cm;
+            border-radius: 14px;
+            background: #ffffff;
+            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            gap: 0.25cm;
+        }
+        .card-header {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #667eea;
+            background: #eef0ff;
+            padding: 0.15cm 0.4cm;
+            border-radius: 999px;
+            align-self: flex-start;
+        }
+        .card h5 {
+            font-size: 1rem;
+            margin: 0;
+        }
+        .card p {
+            margin: 0;
+        }
+        .info-block {
+            display: flex;
+            flex-direction: column;
+            gap: 0.15cm;
+            flex: 1;
+        }
+        .barcode {
+            display: block;
+            width: 100%;
+            height: 1.2cm;
+            flex-shrink: 0;
+        }
+        @@page {
+            size: A4 landscape;
+            margin: 1.5cm;
+        }
+        @@media print {
+            body { padding: 0; background: #fff; }
+            .controls { display: none; }
+            .page { page-break-inside: avoid; }
+        }
+    </style>
+</head>
+<body>
+    <div class="controls mb-3 text-center">
+        <button class="btn btn-primary" onclick="window.print()">
+            <i class="fas fa-print me-2"></i>Imprimir credenciales
+        </button>
+        <a asp-action="Index" class="btn btn-outline-secondary ms-2">
+            <i class="fas fa-arrow-left me-2"></i>Volver
+        </a>
+    </div>
+
+    @for (int i = 0; i < alumnos.Count; i += 4)
+    {
+        <div class="page">
+            @foreach (var alumno in alumnos.Skip(i).Take(4))
+            {
+                var curso = string.IsNullOrWhiteSpace(alumno.Curso) ? "Curso: N/D" : $"Curso: {alumno.Curso}";
+                <div class="card">
+                    <div class="card-header">Biblioteca Escolar</div>
+                    <div class="info-block">
+                        <h5>@alumno.NombreCompleto</h5>
+                        <p class="text-muted">@curso</p>
+                        <p><strong>RUT:</strong> @alumno.RUT</p>
+                    </div>
+                    <svg class="barcode" data-rut="@alumno.RUT"></svg>
+                </div>
+            }
+        </div>
+    }
+
+    <script src="https://kit.fontawesome.com/a2e0e9cf0b.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script>
+        function rutToEan13(rawRut) {
+            const digits = (rawRut || "").replace(/\D/g, "");
+            if (!digits) {
+                return null;
+            }
+            const padded = digits.padStart(12, "0");
+            return padded.slice(-12);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".barcode").forEach(el => {
+                const rut = el.dataset.rut || "";
+                const eanValue = rutToEan13(rut);
+
+                if (!eanValue) {
+                    el.replaceWith("RUT inválido");
+                    return;
+                }
+
+                JsBarcode(el, eanValue, {
+                    format: "EAN13",
+                    lineColor: "#111",
+                    width: 1.6,
+                    height: 50,
+                    fontSize: 12,
+                    displayValue: true,
+                    margin: 0,
+                    flat: true
+                });
+            });
+        });
+    </script>
+</body>
+</html>
+

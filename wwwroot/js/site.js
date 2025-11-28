@@ -48,34 +48,15 @@ $(document).ready(function() {
         }
     }
 
-    // Auto-hide alerts después de 15 segundos
+    // Auto-hide alerts después de 15 segundos (excepto las permanentes)
     setTimeout(function() {
-        $('.alert').fadeOut('slow');
+        $('.alert').not('.alert-permanent').fadeOut('slow');
     }, 15000);
 
     // Confirmación para eliminar elementos
     $('a[href*="Delete"]').click(function(e) {
         if (!confirm('¿Está seguro de que desea eliminar este elemento? Esta acción no se puede deshacer.')) {
             e.preventDefault();
-        }
-    });
-
-    // Validación de RUT en tiempo real
-    $('input[name="RUT"]').on('input', function() {
-        var rut = $(this).val();
-        var input = $(this);
-        
-        if (rut.length > 0) {
-            // Aquí podrías agregar validación de RUT en tiempo real
-            // Por ahora solo formateamos
-            if (rut.length > 2 && !rut.includes('-')) {
-                var numero = rut.slice(0, -1);
-                var dv = rut.slice(-1);
-                if (numero.length > 0) {
-                    var formateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv;
-                    input.val(formateado);
-                }
-            }
         }
     });
 
@@ -102,43 +83,6 @@ $(document).ready(function() {
         $(this).addClass('fade-in');
     });
 
-    // Búsqueda en tiempo real (si está implementada)
-    $('#searchInput').on('input', function() {
-        var searchTerm = $(this).val().toLowerCase();
-        $('.searchable-item').each(function() {
-            var text = $(this).text().toLowerCase();
-            if (text.includes(searchTerm)) {
-                $(this).show();
-            } else {
-                $(this).hide();
-            }
-        });
-    });
-
-    // Formateo automático de números
-    $('input[type="number"]').on('input', function() {
-        var value = $(this).val();
-        if (value && value < 0) {
-            $(this).val(0);
-        }
-    });
-
-    // Validación de formularios
-    $('form').on('submit', function() {
-        var form = $(this);
-        if (form[0].checkValidity() === false) {
-            event.preventDefault();
-            event.stopPropagation();
-        }
-        form.addClass('was-validated');
-    });
-
-    // Auto-resize textareas
-    $('textarea').on('input', function() {
-        this.style.height = 'auto';
-        this.style.height = (this.scrollHeight) + 'px';
-    });
-
     // Loading state para botones de envío
     $('form').on('submit', function() {
         var submitBtn = $(this).find('button[type="submit"]');
@@ -147,69 +91,6 @@ $(document).ready(function() {
             submitBtn.html('<span class="spinner-border spinner-border-sm me-2" role="status"></span>Procesando...');
         }
     });
-
-    // Confirmación para acciones importantes
-    $('.btn-danger').click(function(e) {
-        if (!confirm('¿Está seguro de que desea realizar esta acción?')) {
-            e.preventDefault();
-        }
-    });
-
-    // Toggle de vista (grid/list)
-    $('#gridView').click(function() {
-        $('#listViewContent').hide();
-        $('#gridViewContent').show();
-        $('#listView').removeClass('active');
-        $(this).addClass('active');
-        localStorage.setItem('viewMode', 'grid');
-    });
-    
-    $('#listView').click(function() {
-        $('#gridViewContent').hide();
-        $('#listViewContent').show();
-        $('#gridView').removeClass('active');
-        $(this).addClass('active');
-        localStorage.setItem('viewMode', 'list');
-    });
-
-    // Restaurar vista guardada
-    var savedView = localStorage.getItem('viewMode');
-    if (savedView === 'grid') {
-        $('#gridView').click();
-    }
-
-    // Filtros dinámicos
-    $('.filter-select').change(function() {
-        $(this).closest('form').submit();
-    });
-
-    // Limpiar filtros
-    $('#clearFilters').click(function() {
-        $('input[type="text"], select').val('');
-        $(this).closest('form').submit();
-    });
-
-    // Notificaciones toast (si se implementan)
-    function showToast(message, type = 'info') {
-        var toastHtml = `
-            <div class="toast align-items-center text-white bg-${type} border-0" role="alert">
-                <div class="d-flex">
-                    <div class="toast-body">${message}</div>
-                    <button type="button" class="btn-close btn-close-white me-2 m-auto" data-bs-dismiss="toast"></button>
-                </div>
-            </div>
-        `;
-        
-        if (!$('#toastContainer').length) {
-            $('body').append('<div id="toastContainer" class="toast-container position-fixed top-0 end-0 p-3"></div>');
-        }
-        
-        $('#toastContainer').append(toastHtml);
-        $('.toast').last().toast('show');
-    }
-
-    // Función global para mostrar notificaciones
-    window.showNotification = showToast;
 
     // Atajos globales para préstamos y devoluciones rápidas
     $(document).on('keydown', function(event) {
@@ -232,79 +113,108 @@ $(document).ready(function() {
             window.location.href = '/Prestamos/PrestamoRapido';
         }
     });
+
+    initializeRutInputs();
 });
+
+const RUT_BODY_MAX_LENGTH = 9;
+const RUT_TOTAL_MAX_LENGTH = RUT_BODY_MAX_LENGTH + 1;
+
+function cleanRutValue(value) {
+    if (!value) return '';
+    return value.replace(/[^0-9kK]/g, '').toUpperCase();
+}
 
 // Funciones utilitarias
 function formatRUT(rut) {
-    if (!rut) return '';
-    
-    // Limpiar RUT
-    rut = rut.replace(/[^0-9kK]/g, '');
-    
-    if (rut.length < 2) return rut;
-    
-    var numero = rut.slice(0, -1);
-    var dv = rut.slice(-1).toUpperCase();
-    
-    // Formatear número con puntos
-    var formateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    
-    return formateado + '-' + dv;
+    let clean = cleanRutValue(rut);
+    if (!clean) return '';
+
+    if (clean.length > RUT_TOTAL_MAX_LENGTH) {
+        clean = clean.slice(0, RUT_TOTAL_MAX_LENGTH);
+    }
+
+    if (clean.length <= 1) return clean;
+
+    const cuerpo = clean.slice(0, -1);
+    const dv = clean.slice(-1);
+    const cuerpoFormateado = cuerpo.replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+
+    return `${cuerpoFormateado}-${dv}`;
 }
 
 function validateRUT(rut) {
-    if (!rut) return false;
-    
-    // Limpiar RUT
-    rut = rut.replace(/[^0-9kK]/g, '');
-    
-    if (rut.length < 2) return false;
-    
-    var numero = rut.slice(0, -1);
-    var dv = rut.slice(-1).toUpperCase();
-    
-    // Validar que el número sea numérico
+    const clean = cleanRutValue(rut);
+    if (clean.length < 2) return false;
+
+    const numero = clean.slice(0, -1);
+    const dv = clean.slice(-1).toUpperCase();
+
     if (!/^\d+$/.test(numero)) return false;
-    
-    // Calcular dígito verificador
-    var suma = 0;
-    var multiplicador = 2;
-    
-    for (var i = numero.length - 1; i >= 0; i--) {
-        suma += parseInt(numero[i]) * multiplicador;
+
+    let suma = 0;
+    let multiplicador = 2;
+
+    for (let i = numero.length - 1; i >= 0; i--) {
+        suma += parseInt(numero[i], 10) * multiplicador;
         multiplicador = multiplicador === 7 ? 2 : multiplicador + 1;
     }
-    
-    var resto = suma % 11;
-    var dvCalculado = 11 - resto;
-    
-    if (dvCalculado === 11) dvCalculado = '0';
-    else if (dvCalculado === 10) dvCalculado = 'K';
-    else dvCalculado = dvCalculado.toString();
-    
+
+    const resto = suma % 11;
+    let dvCalculado = 11 - resto;
+
+    if (dvCalculado === 11) {
+        dvCalculado = '0';
+    } else if (dvCalculado === 10) {
+        dvCalculado = 'K';
+    } else {
+        dvCalculado = dvCalculado.toString();
+    }
+
     return dv === dvCalculado;
 }
 
-// Función para exportar datos (si se implementa)
-function exportToCSV(data, filename) {
-    var csv = 'data:text/csv;charset=utf-8,';
-    csv += data.map(row => row.join(',')).join('\n');
-    
-    var encodedUri = encodeURI(csv);
-    var link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', filename);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
+function updateRutValidationState(input) {
+    const value = input.value.trim();
+    if (!value) {
+        input.classList.remove('is-valid', 'is-invalid');
+        input.setCustomValidity('');
+        return;
+    }
+
+    if (validateRUT(value)) {
+        input.classList.add('is-valid');
+        input.classList.remove('is-invalid');
+        input.setCustomValidity('');
+    } else {
+        input.classList.remove('is-valid');
+        input.classList.add('is-invalid');
+        input.setCustomValidity('RUT inválido');
+    }
 }
 
-// Función para imprimir
-function printPage() {
-    window.print();
+function handleRutInput(event) {
+    const input = event.target;
+    const formatted = formatRUT(input.value);
+    input.value = formatted;
+    updateRutValidationState(input);
 }
 
-// Función para refrescar datos
-function refreshData() {
-    location.reload();
+function initializeRutInputs() {
+    const inputs = document.querySelectorAll('input.rut-input');
+    inputs.forEach(input => {
+        if (input.dataset.rutInitialized === 'true') {
+            return;
+        }
+        input.dataset.rutInitialized = 'true';
+        if (!input.hasAttribute('maxlength')) {
+            input.setAttribute('maxlength', '12');
+        }
+        input.addEventListener('input', handleRutInput);
+        input.addEventListener('blur', () => updateRutValidationState(input));
+        input.addEventListener('focus', () => updateRutValidationState(input));
+        input.value = formatRUT(input.value);
+        updateRutValidationState(input);
+    });
 }
+

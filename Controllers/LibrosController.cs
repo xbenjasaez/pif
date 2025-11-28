@@ -1,6 +1,8 @@
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BibliotecaVirtualWeb.Data;
+using BibliotecaVirtualWeb.Helpers;
 using BibliotecaVirtualWeb.Models;
 using Microsoft.AspNetCore.Authorization;
 
@@ -126,6 +128,32 @@ namespace BibliotecaVirtualWeb.Controllers
                 {
                     ModelState.AddModelError("ISBN", "Ya existe un libro con este ISBN.");
                 }
+            }
+
+            if (!string.IsNullOrWhiteSpace(libro.CodigoBarras))
+            {
+                if (Ean13Helper.TryNormalize(libro.CodigoBarras, out var codigoNormalizado, out var errorCodigo))
+                {
+                    var codigoDuplicado = await _context.Libros
+                        .AnyAsync(l => l.CodigoBarras == codigoNormalizado && l.Id != libro.Id);
+
+                    if (codigoDuplicado)
+                    {
+                        ModelState.AddModelError("CodigoBarras", "Ya existe otro libro con este código de barras.");
+                    }
+                    else
+                    {
+                        libro.CodigoBarras = codigoNormalizado;
+                    }
+                }
+                else
+                {
+                    ModelState.AddModelError("CodigoBarras", errorCodigo);
+                }
+            }
+            else
+            {
+                ModelState.AddModelError("CodigoBarras", "El código de barras es obligatorio.");
             }
 
             if (ModelState.IsValid)
@@ -505,17 +533,8 @@ namespace BibliotecaVirtualWeb.Controllers
 
         private async Task<string> GenerarCodigoBarras()
         {
-            var random = new Random();
-            string codigo;
-            bool existe;
-            
-            do
-            {
-                codigo = "978" + random.Next(100000000, 999999999).ToString();
-                existe = await _context.Libros.AnyAsync(l => l.CodigoBarras == codigo);
-            } while (existe);
-
-            return codigo;
+            return await Ean13Helper.GenerarCodigoUnicoAsync(async codigo =>
+                await _context.Libros.AnyAsync(l => l.CodigoBarras == codigo));
         }
     }
 }

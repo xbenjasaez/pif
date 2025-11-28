@@ -2,8 +2,10 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BibliotecaVirtualWeb.Data;
 using BibliotecaVirtualWeb.Models;
+using BibliotecaVirtualWeb.Services;
 using Microsoft.AspNetCore.Authorization;
 using System.Globalization;
+using System.Linq;
 
 namespace BibliotecaVirtualWeb.Controllers
 {
@@ -11,69 +13,80 @@ namespace BibliotecaVirtualWeb.Controllers
     public class ReportesController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private readonly IHttpContextAccessor _httpContextAccessor;
+        private readonly ReportesPdfRenderer _reportesPdfRenderer;
 
-        public ReportesController(ApplicationDbContext context)
+        public ReportesController(ApplicationDbContext context, ReportesPdfRenderer reportesPdfRenderer, IHttpContextAccessor httpContextAccessor)
         {
             _context = context;
+            _reportesPdfRenderer = reportesPdfRenderer;
+            _httpContextAccessor = httpContextAccessor;
         }
 
-        // GET: Reportes
-        public async Task<IActionResult> Index(string periodo = "Historico", DateTime? fechaInicio = null, DateTime? fechaFin = null)
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ExportarPdf(
+            [Bind(Prefix = "ExportOptions")] ReportesExportOptions exportOptions,
+            string periodo = "Historico",
+            DateTime? fechaInicio = null,
+            DateTime? fechaFin = null,
+            string? curso = null,
+            string? categoria = null)
         {
-            try
+            var seleccionValida = exportOptions != null && (exportOptions.IncluirResumen ||
+                exportOptions.IncluirPrestamos ||
+                exportOptions.IncluirRankings ||
+                exportOptions.IncluirEstadisticas ||
+                exportOptions.IncluirAlertas);
+
+            if (!seleccionValida)
             {
-                var viewModel = new ReportesDetalladosViewModel
-                {
-                    Filtro = new FiltroReportesViewModel { Periodo = periodo }
-                };
+                TempData["WarningMessage"] = "Debes seleccionar al menos una sección para exportar.";
+                return RedirectToAction(nameof(Index), new { periodo, fechaInicio, fechaFin, curso, categoria });
+            }
 
-            // Calcular fechas según el periodo
+            var viewModel = await ConstruirReporteDetallado(periodo, fechaInicio, fechaFin, curso, categoria);
+            viewModel.ExportOptions = exportOptions;
+
+            var pdfBytes = _reportesPdfRenderer.Generar(viewModel, exportOptions);
+            var nombreArchivo = $"Reportes_{DateTime.Now:yyyyMMddHHmm}.pdf";
+            return File(pdfBytes, "application/pdf", nombreArchivo);
+        }
+
+        private async Task<ReportesDetalladosViewModel> ConstruirReporteDetallado(string periodo, DateTime? fechaInicio, DateTime? fechaFin, string? cursoSeleccionado = null, string? categoriaSeleccionada = null)
+        {
+            var filtro = new FiltroReportesViewModel { Periodo = periodo };
+
             DateTime fechaInicioCalculo;
-            DateTime fechaFinCalculo = fechaFin ?? DateTime.Now;
+            var fechaFinCalculo = fechaFin ?? DateTime.Now;
 
-            // Si se proporcionan fechas personalizadas, usarlas
             if (fechaInicio.HasValue && fechaFin.HasValue)
             {
-                periodo = "Personalizado";
+                filtro.Periodo = "Personalizado";
                 fechaInicioCalculo = fechaInicio.Value;
                 fechaFinCalculo = fechaFin.Value;
             }
             else
             {
-                // Usar periodos predefinidos
-                switch (periodo)
+                fechaInicioCalculo = periodo switch
                 {
-                    case "Hoy":
-                        fechaInicioCalculo = DateTime.Today;
-                        break;
-                    case "Semana":
-                        fechaInicioCalculo = DateTime.Now.AddDays(-7);
-                        break;
-                    case "Mes":
-                        fechaInicioCalculo = DateTime.Now.AddMonths(-1);
-                        break;
-                    case "SeisMeses":
-                        fechaInicioCalculo = DateTime.Now.AddMonths(-6);
-                        break;
-                    case "Anual":
-                        fechaInicioCalculo = DateTime.Now.AddYears(-1);
-                        break;
-                    case "Historico":
-                    default:
-                        // Para histórico, no aplicar filtro de fecha
-                        fechaInicioCalculo = DateTime.Now.AddYears(-10);
-                        break;
-                }
+                    "Hoy" => DateTime.Today,
+                    "Semana" => DateTime.Now.AddDays(-7),
+                    "Mes" => DateTime.Now.AddMonths(-1),
+                    "SeisMeses" => DateTime.Now.AddMonths(-6),
+                    "Anual" => DateTime.Now.AddYears(-1),
+                    _ => DateTime.Now.AddYears(-10)
+                };
             }
 
-            // Filtrar préstamos según el periodo
             IQueryable<Prestamo> prestamosFiltrados;
-            
-            if (periodo == "Historico" && !fechaInicio.HasValue)
+            if (filtro.Periodo == "Historico" && !fechaInicio.HasValue)
             {
-                // Para "Histórico", no aplicar ningún filtro de fecha
-                prestamosFiltrados = _context.Prestamos.AsQueryable();
-                // Para visualización, obtener la fecha del préstamo más antiguo
+                prestamosFiltrados = _context.Prestamos
+                    .Include(p => p.Usuario)
+                    .Include(p => p.Libro)
+                    .Include(p => p.Ejemplar)
+                    .AsQueryable();
                 var primerPrestamoFecha = await _context.Prestamos
                     .OrderBy(p => p.FechaPrestamo)
                     .Select(p => p.FechaPrestamo)
@@ -85,82 +98,88 @@ namespace BibliotecaVirtualWeb.Controllers
             }
             else
             {
-                prestamosFiltrados = _context.Prestamos.Where(p => p.FechaPrestamo >= fechaInicioCalculo && p.FechaPrestamo <= fechaFinCalculo);
+                prestamosFiltrados = _context.Prestamos
+                    .Include(p => p.Usuario)
+                    .Include(p => p.Libro)
+                    .Include(p => p.Ejemplar)
+                    .Where(p => p.FechaPrestamo >= fechaInicioCalculo && p.FechaPrestamo <= fechaFinCalculo);
             }
 
-            viewModel.Filtro.Periodo = periodo;
-            viewModel.Filtro.FechaInicio = fechaInicioCalculo;
-            viewModel.Filtro.FechaFin = fechaFinCalculo;
-            
-            Console.WriteLine($"Filtro aplicado - Periodo: {periodo}, Fecha inicio: {fechaInicioCalculo:yyyy-MM-dd}, Fecha fin: {fechaFinCalculo:yyyy-MM-dd}");
+            if (!string.IsNullOrWhiteSpace(cursoSeleccionado) && !string.Equals(cursoSeleccionado, "Todos", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(cursoSeleccionado, "Sin curso", StringComparison.OrdinalIgnoreCase))
+                {
+                    prestamosFiltrados = prestamosFiltrados.Where(p => p.Usuario.Curso == null || p.Usuario.Curso == "");
+                }
+                else
+                {
+                    prestamosFiltrados = prestamosFiltrados.Where(p => p.Usuario.Curso != null && p.Usuario.Curso == cursoSeleccionado);
+                }
+            }
 
-            // Estadísticas generales
+            if (!string.IsNullOrWhiteSpace(categoriaSeleccionada) && !string.Equals(categoriaSeleccionada, "Todos", StringComparison.OrdinalIgnoreCase))
+            {
+                if (string.Equals(categoriaSeleccionada, "Sin categoría", StringComparison.OrdinalIgnoreCase))
+                {
+                    prestamosFiltrados = prestamosFiltrados.Where(p => p.Libro.Categoria == null || p.Libro.Categoria == "");
+                }
+                else
+                {
+                    prestamosFiltrados = prestamosFiltrados.Where(p => p.Libro.Categoria != null && p.Libro.Categoria == categoriaSeleccionada);
+                }
+            }
+
+            filtro.FechaInicio = fechaInicioCalculo;
+            filtro.FechaFin = fechaFinCalculo;
+            filtro.CursoSeleccionado = cursoSeleccionado;
+            filtro.CategoriaSeleccionada = categoriaSeleccionada;
+
+            var viewModel = new ReportesDetalladosViewModel
+            {
+                Filtro = filtro
+            };
+
             viewModel.TotalUsuarios = await _context.Usuarios.CountAsync();
             viewModel.TotalLibros = await _context.Libros.CountAsync();
-            
-            // Debug: contar préstamos totales en la BD
-            var totalPrestamosEnBD = await _context.Prestamos.CountAsync();
-            Console.WriteLine($"Total préstamos en BD: {totalPrestamosEnBD}");
-            Console.WriteLine($"Periodo seleccionado: {periodo}");
-            Console.WriteLine($"Fecha inicio filtro: {fechaInicio}");
-            
             viewModel.TotalPrestamos = await prestamosFiltrados.CountAsync();
-            Console.WriteLine($"Total préstamos filtrados: {viewModel.TotalPrestamos}");
-            
             viewModel.PrestamosActivos = await prestamosFiltrados.CountAsync(p => p.Estado == "Activo");
-            Console.WriteLine($"Préstamos activos: {viewModel.PrestamosActivos}");
 
-            // Calcular tasa de devolución
             var prestamosDevueltos = await prestamosFiltrados
                 .Where(p => p.Estado == "Devuelto" && p.FechaDevolucion.HasValue)
+                .AsNoTracking()
                 .ToListAsync();
 
             viewModel.TotalDevueltos = prestamosDevueltos.Count;
-            
+
             if (viewModel.TotalDevueltos > 0)
             {
-                var devolucionesPuntuales = prestamosDevueltos
-                    .Count(p => p.FechaDevolucion!.Value <= p.FechaVencimiento);
+                var devolucionesPuntuales = prestamosDevueltos.Count(p => p.FechaDevolucion!.Value <= p.FechaVencimiento);
                 var devolucionesTardias = viewModel.TotalDevueltos - devolucionesPuntuales;
 
                 viewModel.TotalDevolucionesPuntuales = devolucionesPuntuales;
                 viewModel.TotalDevolucionesTardias = devolucionesTardias;
-                viewModel.TasaDevolucionPuntual = Math.Round((devolucionesPuntuales * 100.0) / viewModel.TotalDevueltos, 2);
-                viewModel.TasaDevolucionTardia = Math.Round((devolucionesTardias * 100.0) / viewModel.TotalDevueltos, 2);
+                viewModel.TasaDevolucionPuntual = Math.Round(devolucionesPuntuales * 100.0 / viewModel.TotalDevueltos, 2);
+                viewModel.TasaDevolucionTardia = Math.Round(devolucionesTardias * 100.0 / viewModel.TotalDevueltos, 2);
+                viewModel.PromedioTiempoPrestamoEnDias = Math.Round(
+                    prestamosDevueltos.Average(p => (p.FechaDevolucion!.Value - p.FechaPrestamo).TotalDays), 1);
             }
 
-            // Libros no devueltos y préstamos vencidos
-            viewModel.LibrosNoDevueltos = await prestamosFiltrados
-                .CountAsync(p => p.Estado == "Activo");
+            viewModel.LibrosNoDevueltos = viewModel.PrestamosActivos;
+            viewModel.PrestamosVencidos = await prestamosFiltrados.CountAsync(p => p.Estado == "Activo" && p.FechaVencimiento < DateTime.Now);
 
-            viewModel.PrestamosVencidos = await prestamosFiltrados
-                .CountAsync(p => p.Estado == "Activo" && p.FechaVencimiento < DateTime.Now);
-
-            // Tiempo promedio de préstamo
-            if (viewModel.TotalDevueltos > 0)
-            {
-                var tiemposPromedio = prestamosDevueltos
-                    .Select(p => (p.FechaDevolucion!.Value - p.FechaPrestamo).TotalDays)
-                    .ToList();
-
-                viewModel.PromedioTiempoPrestamoEnDias = Math.Round(tiemposPromedio.Average(), 1);
-            }
-
-            // Top 10 Usuarios - Hacer join explícito
             var prestamosParaUsuarios = await (
                 from p in prestamosFiltrados
                 join u in _context.Usuarios on p.UsuarioId equals u.Id
-                select new {
+                select new
+                {
                     p.UsuarioId,
                     u.Nombre,
                     u.Apellido,
                     u.RUT,
+                    u.Curso,
                     p.Estado,
                     p.FechaVencimiento
-                }
-            ).ToListAsync();
-            
-            Console.WriteLine($"Préstamos para usuarios: {prestamosParaUsuarios.Count}");
+                }).AsNoTracking().ToListAsync();
 
             var ahora = DateTime.Now;
             viewModel.TopUsuarios = prestamosParaUsuarios
@@ -179,22 +198,33 @@ namespace BibliotecaVirtualWeb.Controllers
                 .Take(10)
                 .ToList();
 
-            // Top 10 Libros más pedidos - Hacer joins explícitos
             var prestamosParaLibros = await (
                 from p in prestamosFiltrados
                 where p.EjemplarId > 0
                 join e in _context.Ejemplares on p.EjemplarId equals e.Id
                 join l in _context.Libros on e.LibroId equals l.Id
-                select new {
+                select new
+                {
                     LibroId = l.Id,
                     l.Titulo,
                     l.Autor,
                     l.Categoria,
                     p.Estado
-                }
-            ).ToListAsync();
-            
-            Console.WriteLine($"Préstamos para libros: {prestamosParaLibros.Count}");
+                }).AsNoTracking().ToListAsync();
+
+            var prestamosPorCurso = await (
+                from p in prestamosFiltrados
+                join u in _context.Usuarios on p.UsuarioId equals u.Id
+                join l in _context.Libros on p.LibroId equals l.Id
+                select new
+                {
+                    Curso = string.IsNullOrWhiteSpace(u.Curso) ? "Sin curso" : u.Curso,
+                    LibroTitulo = l.Titulo,
+                    p.Estado,
+                    p.FechaPrestamo,
+                    p.FechaVencimiento,
+                    p.FechaDevolucion
+                }).AsNoTracking().ToListAsync();
 
             viewModel.TopLibros = prestamosParaLibros
                 .GroupBy(p => new { p.LibroId, p.Titulo, p.Autor, p.Categoria })
@@ -211,124 +241,233 @@ namespace BibliotecaVirtualWeb.Controllers
                 .Take(10)
                 .ToList();
 
-            // Categorías más populares - Usar los mismos datos que libros
-            var prestamosParaCategorias = prestamosParaLibros
-                .Select(p => new {
-                    Categoria = p.Categoria ?? "Sin categoría",
-                    p.Estado
-                })
-                .ToList();
-
-            viewModel.CategoriasPopulares = prestamosParaCategorias
-                .GroupBy(p => p.Categoria)
+            viewModel.CategoriasPopulares = prestamosParaLibros
+                .GroupBy(p => p.Categoria ?? "Sin categoría")
                 .Select(g => new CategoriaPopularViewModel
                 {
                     Categoria = g.Key,
                     TotalPrestamos = g.Count(),
-                    PrestamosActivos = g.Count(p => p.Estado == "Activo"),
-                    Porcentaje = 0
+                    PrestamosActivos = g.Count(p => p.Estado == "Activo")
                 })
                 .OrderByDescending(x => x.TotalPrestamos)
                 .Take(5)
                 .ToList();
 
-            // Calcular porcentajes de categorías
             var totalCategorias = viewModel.CategoriasPopulares.Sum(c => c.TotalPrestamos);
             if (totalCategorias > 0)
             {
                 foreach (var categoria in viewModel.CategoriasPopulares)
                 {
-                    categoria.Porcentaje = Math.Round((categoria.TotalPrestamos * 100.0) / totalCategorias, 1);
+                    categoria.Porcentaje = Math.Round(categoria.TotalPrestamos * 100.0 / totalCategorias, 1);
                 }
             }
 
-            // Estadísticas mensuales (últimos 6 meses o según filtro)
-            var mesesAtras = periodo switch
+            var mesesAtras = filtro.Periodo switch
             {
                 "Hoy" => 1,
                 "Semana" => 1,
                 "DosMeses" => 2,
-                "Año" => 12,
+                "Anual" => 12,
                 _ => 6
             };
 
             var fechaInicioEstadisticas = DateTime.Now.AddMonths(-mesesAtras);
-            
-            // Primero traer los datos agrupados
             var estadisticasTemp = await _context.Prestamos
                 .Where(p => p.FechaPrestamo >= fechaInicioEstadisticas)
-                .GroupBy(p => new { p.FechaPrestamo.Year, p.FechaPrestamo.Month })
+                .GroupBy(p => new { p.FechaPrestamo.Year, p.FechaPrestamo.Month, Segmento = string.IsNullOrWhiteSpace(p.Usuario.Curso) ? "Global" : p.Usuario.Curso })
                 .Select(g => new
                 {
                     Año = g.Key.Year,
                     MesNumero = g.Key.Month,
+                    Segmento = g.Key.Segmento,
                     TotalPrestamos = g.Count(),
                     TotalDevoluciones = g.Count(p => p.Estado == "Devuelto")
-                })
-                .ToListAsync();
+                }).ToListAsync();
 
-            Console.WriteLine($"Estadísticas mensuales obtenidas: {estadisticasTemp.Count}");
-
-            // Formatear nombres de meses y crear el ViewModel
             var culture = new CultureInfo("es-ES");
-            viewModel.EstadisticasMensuales = estadisticasTemp
-                .OrderBy(x => x.Año)
-                .ThenBy(x => x.MesNumero)
+            var estadisticasFiltradas = estadisticasTemp
+                .Where(x =>
+                    string.IsNullOrWhiteSpace(filtro.CursoSeleccionado) ||
+                    filtro.CursoSeleccionado.Equals("Todos", StringComparison.OrdinalIgnoreCase) ||
+                    x.Segmento.Equals(filtro.CursoSeleccionado, StringComparison.OrdinalIgnoreCase))
                 .Select(x => new EstadisticaMensualViewModel
                 {
                     Año = x.Año,
                     Mes = culture.DateTimeFormat.GetMonthName(x.MesNumero),
                     TotalPrestamos = x.TotalPrestamos,
-                    TotalDevoluciones = x.TotalDevoluciones
+                    TotalDevoluciones = x.TotalDevoluciones,
+                    Segmento = string.IsNullOrWhiteSpace(filtro.CursoSeleccionado) || filtro.CursoSeleccionado.Equals("Todos", StringComparison.OrdinalIgnoreCase)
+                        ? x.Segmento
+                        : filtro.CursoSeleccionado
                 })
+                .OrderBy(x => x.Año)
+                .ThenBy(x => x.Mes)
                 .ToList();
 
-            // Estadísticas adicionales para la pestaña avanzada
-            // Calcular índice de rotación (préstamos / libros)
-            ViewBag.IndiceRotacion = viewModel.TotalLibros > 0 
-                ? Math.Round((double)viewModel.TotalPrestamos / viewModel.TotalLibros, 2) 
+            viewModel.EstadisticasMensuales = estadisticasFiltradas;
+
+            viewModel.IndiceRotacion = viewModel.TotalLibros > 0
+                ? Math.Round((double)viewModel.TotalPrestamos / viewModel.TotalLibros, 2)
+                : 0;
+            viewModel.UsuarioMasMoroso = viewModel.TopUsuarios.OrderByDescending(u => u.PrestamosVencidos).FirstOrDefault();
+            viewModel.LibroMasSolicitado = viewModel.TopLibros.FirstOrDefault();
+            viewModel.CategoriaMasPopular = viewModel.CategoriasPopulares.FirstOrDefault();
+            viewModel.TasaPrestamosActivos = viewModel.TotalPrestamos > 0
+                ? Math.Round(viewModel.PrestamosActivos * 100.0 / viewModel.TotalPrestamos, 1)
+                : 0;
+            viewModel.EficienciaDevoluciones = viewModel.TotalPrestamos > 0
+                ? Math.Round(viewModel.TotalDevueltos * 100.0 / viewModel.TotalPrestamos, 1)
                 : 0;
 
-            // Usuario con más préstamos vencidos
-            ViewBag.UsuarioMasMoroso = viewModel.TopUsuarios
-                .OrderByDescending(u => u.PrestamosVencidos)
+            var cursosDisponibles = await _context.Usuarios
+                .Where(u => !string.IsNullOrWhiteSpace(u.Curso))
+                .Select(u => u.Curso!)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+            if (!cursosDisponibles.Any(c => c.Equals("Sin curso", StringComparison.OrdinalIgnoreCase)))
+            {
+                cursosDisponibles.Add("Sin curso");
+            }
+
+            var categoriasDisponibles = await _context.Libros
+                .Select(l => l.Categoria ?? "Sin categoría")
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+
+            filtro.CursosDisponibles = new[] { "Todos" }.Concat(cursosDisponibles);
+            filtro.CategoriasDisponibles = new[] { "Todos" }.Concat(categoriasDisponibles);
+
+            var usuarioActual = _httpContextAccessor.HttpContext?.User?.Identity?.Name ?? "Usuario no identificado";
+            viewModel.GeneradoPor = usuarioActual;
+            viewModel.ExportOptions ??= new ReportesExportOptions();
+            viewModel.AlertasRapidas = new List<string>();
+
+            if (viewModel.PrestamosVencidos > 0)
+            {
+                viewModel.AlertasRapidas.Add($"Hay {viewModel.PrestamosVencidos} préstamo(s) vencido(s) que requieren seguimiento.");
+            }
+            if (viewModel.LibrosNoDevueltos > 0)
+            {
+                viewModel.AlertasRapidas.Add($"{viewModel.LibrosNoDevueltos} libro(s) siguen prestados actualmente.");
+            }
+            if (viewModel.TasaDevolucionTardia > 20)
+            {
+                viewModel.AlertasRapidas.Add($"La tasa de devoluciones tardías es {viewModel.TasaDevolucionTardia:0.0}%, superior al 20% recomendado.");
+            }
+            if (viewModel.TasaPrestamosActivos > 70)
+            {
+                viewModel.AlertasRapidas.Add($"El {viewModel.TasaPrestamosActivos:0.0}% de los préstamos sigue activo, revisa disponibilidad.");
+            }
+
+            viewModel.TotalCursosConPrestamos = prestamosPorCurso
+                .Select(x => x.Curso)
+                .Distinct(System.StringComparer.OrdinalIgnoreCase)
+                .Count();
+
+            var totalPrestamosCursos = prestamosPorCurso.Count;
+            var cursosAgrupados = prestamosPorCurso
+                .GroupBy(x => x.Curso)
+                .Select(g => new CursoActividadViewModel
+                {
+                    Curso = g.Key,
+                    TotalPrestamos = g.Count(),
+                    PrestamosActivos = g.Count(x => x.Estado == "Activo"),
+                    PrestamosVencidos = g.Count(x => x.Estado == "Activo" && x.FechaVencimiento < ahora),
+                    PorcentajeDelTotal = totalPrestamosCursos > 0
+                        ? Math.Round(g.Count() * 100.0 / totalPrestamosCursos, 1)
+                        : 0,
+                    PromedioDiasPrestamo = g.Any(x => x.FechaDevolucion.HasValue)
+                        ? Math.Round(g.Where(x => x.FechaDevolucion.HasValue)
+                            .Average(x => (x.FechaDevolucion!.Value - x.FechaPrestamo).TotalDays), 1)
+                        : 0,
+                    LibrosFavoritos = g.GroupBy(x => x.LibroTitulo)
+                        .Select(lib => new CursoLibroResumenViewModel
+                        {
+                            LibroTitulo = lib.Key,
+                            TotalPrestamos = lib.Count()
+                        })
+                        .OrderByDescending(lib => lib.TotalPrestamos)
+                        .ThenBy(lib => lib.LibroTitulo)
+                        .Take(3)
+                        .ToList()
+                })
+                .OrderByDescending(x => x.TotalPrestamos)
+                .ThenBy(x => x.Curso)
+                .ToList();
+
+            viewModel.CursosTop = cursosAgrupados.Take(8).ToList();
+            viewModel.CursoMasActivo = viewModel.CursosTop.FirstOrDefault();
+            viewModel.CursoMayorMora = cursosAgrupados
+                .OrderByDescending(x => x.PrestamosVencidos)
+                .ThenBy(x => x.Curso)
                 .FirstOrDefault();
+            viewModel.CursosConRiesgo = cursosAgrupados
+                .Where(x => x.PrestamosVencidos > 0)
+                .OrderByDescending(x => x.PrestamosVencidos)
+                .ThenBy(x => x.Curso)
+                .Take(5)
+                .ToList();
 
-            // Libro más solicitado
-            ViewBag.LibroMasSolicitado = viewModel.TopLibros.FirstOrDefault();
+            var chartData = new ReportesChartViewModel();
+            if (viewModel.EstadisticasMensuales.Any())
+            {
+                chartData.TendenciaLabels = viewModel.EstadisticasMensuales
+                    .Select(x => $"{culture.TextInfo.ToTitleCase(x.Mes)} {x.Año}")
+                    .ToList();
+                chartData.TendenciaSeries.Add(new ChartSerieViewModel
+                {
+                    Label = viewModel.EstadisticasMensuales.First().Segmento ?? "Global",
+                    Valores = viewModel.EstadisticasMensuales.Select(x => x.TotalPrestamos).ToList()
+                });
+            }
 
-            // Categoría más popular
-            ViewBag.CategoriaMasPopular = viewModel.CategoriasPopulares.FirstOrDefault();
+            if (viewModel.CategoriasPopulares.Any())
+            {
+                chartData.CategoriasLabels = viewModel.CategoriasPopulares.Select(c => c.Categoria).ToList();
+                chartData.CategoriasValores = viewModel.CategoriasPopulares.Select(c => c.TotalPrestamos).ToList();
+            }
 
-            // Calcular tasa de préstamos activos
-            ViewBag.TasaPrestamosActivos = viewModel.TotalPrestamos > 0
-                ? Math.Round((viewModel.PrestamosActivos * 100.0) / viewModel.TotalPrestamos, 1)
-                : 0;
+            chartData.EstadoLabels = new List<string> { "Activos", "Devueltos", "Vencidos" };
+            chartData.EstadoValores = new List<int>
+            {
+                viewModel.PrestamosActivos,
+                viewModel.TotalDevueltos,
+                viewModel.PrestamosVencidos
+            };
 
-            // Eficiencia de devoluciones (% de devueltos del total)
-            ViewBag.EficienciaDevoluciones = viewModel.TotalPrestamos > 0
-                ? Math.Round((viewModel.TotalDevueltos * 100.0) / viewModel.TotalPrestamos, 1)
-                : 0;
+            viewModel.ChartData = chartData;
 
+            return viewModel;
+        }
+
+        // GET: Reportes
+        public async Task<IActionResult> Index(string periodo = "Historico", DateTime? fechaInicio = null, DateTime? fechaFin = null, string? curso = null, string? categoria = null)
+        {
+            try
+            {
+                var viewModel = await ConstruirReporteDetallado(periodo, fechaInicio, fechaFin, curso, categoria);
                 return View(viewModel);
             }
             catch (Exception ex)
             {
-                // Log del error completo
                 Console.WriteLine($"Error en Reportes: {ex.Message}");
                 Console.WriteLine($"StackTrace: {ex.StackTrace}");
                 if (ex.InnerException != null)
                 {
                     Console.WriteLine($"Inner Exception: {ex.InnerException.Message}");
                 }
-                
-                // Pasar el error a la vista
-                ViewBag.ErrorMessage = $"Error al cargar los reportes: {ex.Message}";
-                
-                // Retornar un modelo vacío para que la vista no falle
+
+                TempData["ErrorMessage"] = $"Error al cargar los reportes: {ex.Message}";
                 return View(new ReportesDetalladosViewModel
                 {
-                    Filtro = new FiltroReportesViewModel { Periodo = periodo }
+                    Filtro = new FiltroReportesViewModel
+                    {
+                        Periodo = periodo,
+                        FechaInicio = fechaInicio ?? DateTime.Now.AddMonths(-1),
+                        FechaFin = fechaFin ?? DateTime.Now
+                    }
                 });
             }
         }

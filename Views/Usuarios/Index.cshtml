@@ -1,6 +1,37 @@
 @model IEnumerable<BibliotecaVirtualWeb.Models.Usuario>
+@using System.Text.RegularExpressions
 @{
     ViewData["Title"] = "Usuarios";
+
+    var cursosOrden = new List<string>
+    {
+        "Prekínder","Kínder","1° Básico","2° Básico","3° Básico","4° Básico",
+        "5° Básico","6° Básico","7° Básico","8° Básico","1° Medio","2° Medio",
+        "3° Medio","4° Medio","Sin curso"
+    };
+
+    int CursoOrden(string curso)
+    {
+        var idx = cursosOrden.IndexOf(curso);
+        return idx >= 0 ? idx : cursosOrden.Count;
+    }
+
+    var grupos = Model
+        .GroupBy(u => string.IsNullOrWhiteSpace(u.Curso) ? "Sin curso" : u.Curso)
+        .OrderBy(g => CursoOrden(g.Key))
+        .ThenBy(g => g.Key)
+        .ToList();
+
+    string Slugify(string? text)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            return "grupo";
+        }
+        var normalized = text.ToLowerInvariant();
+        normalized = Regex.Replace(normalized, @"[^a-z0-9]+", "-");
+        return normalized.Trim('-');
+    }
 }
 
 <div class="d-flex justify-content-between align-items-center mb-4">
@@ -11,6 +42,20 @@
         <i class="fas fa-user-plus me-1"></i>Agregar Usuario
     </a>
 </div>
+
+@section Scripts {
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+            document.querySelectorAll(".seleccionar-curso").forEach(master => {
+                master.addEventListener("change", function () {
+                    const curso = this.dataset.curso;
+                    document.querySelectorAll(`.seleccionar-credencial[data-curso='${curso}']`)
+                        .forEach(chk => chk.checked = this.checked);
+                });
+            });
+        });
+    </script>
+}
 
 <!-- Filtros -->
 <div class="card shadow mb-4">
@@ -50,99 +95,118 @@
 <div class="card shadow">
     <div class="card-header py-3">
         <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-list me-2"></i>Lista de Usuarios (@Model.Count())
+            <i class="fas fa-layer-group me-2"></i>Alumnos por curso (@Model.Count())
         </h6>
     </div>
     <div class="card-body">
-        @if (Model.Any())
+        @if (grupos.Any())
         {
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead class="table-light">
-                        <tr>
-                            <th>Nombre Completo</th>
-                            <th>RUT</th>
-                            <th>Email</th>
-                            <th>Teléfono</th>
-                            <th>Curso</th>
-                            <th>Estado</th>
-                            <th>Préstamos Activos</th>
-                            <th class="text-center">Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var usuario in Model)
-                        {
-                            <tr>
-                                <td>
-                                    <div class="fw-bold">@usuario.NombreCompleto</div>
-                                    <small class="text-muted">Registrado: @usuario.FechaRegistro.ToString("dd/MM/yyyy")</small>
-                                </td>
-                                <td>
-                                    <code>@usuario.RUT</code>
-                                </td>
-                                <td>
-                                    @if (!string.IsNullOrEmpty(usuario.Email))
-                                    {
-                                        <a href="mailto:@usuario.Email" class="text-decoration-none">@usuario.Email</a>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (!string.IsNullOrEmpty(usuario.Telefono))
-                                    {
-                                        <a href="tel:@usuario.Telefono" class="text-decoration-none">@usuario.Telefono</a>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </td>
-                                <td>
-                                    @if (!string.IsNullOrEmpty(usuario.Curso))
-                                    {
-                                        <span class="badge bg-light text-dark">@usuario.Curso</span>
-                                    }
-                                    else
-                                    {
-                                        <span class="text-muted">-</span>
-                                    }
-                                </td>
-                                <td>
-                                    <span class="@usuario.EstadoBadgeClass">@usuario.Estado</span>
-                                </td>
-                                <td>
-                                    <div class="d-flex align-items-center">
-                                        <span class="badge bg-primary me-1">@usuario.PrestamosActivos</span>
-                                        @if (usuario.PrestamosVencidos > 0)
+            <div class="accordion" id="cursosAccordion">
+                @for (var i = 0; i < grupos.Count; i++)
+                {
+                    var grupo = grupos[i];
+                    var collapseId = $"curso-{Slugify(grupo.Key)}";
+                    <div class="accordion-item mb-3 border-0">
+                        <h2 class="accordion-header" id="heading-@collapseId">
+                            <button class="accordion-button @(i == 0 ? string.Empty : "collapsed")" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId">
+                                <div class="d-flex flex-column flex-md-row w-100 justify-content-between">
+                                    <span>
+                                        <strong>@grupo.Key</strong>
+                                        <span class="badge bg-primary-subtle text-primary ms-2">@grupo.Count() alumno(s)</span>
+                                    </span>
+                                    <small class="text-muted">
+                                        @(grupo.Key == "Sin curso" ? "Alumnos sin curso asignado" : "Alumnos inscritos en este curso")
+                                    </small>
+                                </div>
+                            </button>
+                        </h2>
+                        <div id="@collapseId" class="accordion-collapse collapse @(i == 0 ? "show" : string.Empty)" data-bs-parent="#cursosAccordion">
+                            <div class="accordion-body">
+                                <form asp-action="ImprimirCredenciales" method="post">
+                                    @Html.AntiForgeryToken()
+                                    <div class="d-flex justify-content-between align-items-center mb-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input seleccionar-curso" type="checkbox" data-curso="@collapseId" id="curso-select-@collapseId">
+                                            <label class="form-check-label" for="curso-select-@collapseId">
+                                                Seleccionar todos
+                                            </label>
+                                        </div>
+                                        <button type="submit" class="btn btn-outline-primary btn-sm">
+                                            <i class="fas fa-id-card me-1"></i>Imprimir seleccionados
+                                        </button>
+                                    </div>
+                                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                                        @foreach (var usuario in grupo.OrderBy(u => u.Apellido).ThenBy(u => u.Nombre))
                                         {
-                                            <span class="badge bg-danger">@usuario.PrestamosVencidos vencidos</span>
+                                            <div class="col">
+                                                <div class="card h-100 border-0 shadow-sm">
+                                                    <div class="card-body">
+                                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                                            <div>
+                                                                <h5 class="card-title mb-1">@usuario.NombreCompleto</h5>
+                                                                <small class="text-muted">Inscrito: @usuario.FechaRegistro.ToString("dd/MM/yyyy")</small>
+                                                            </div>
+                                                            <span class="@usuario.EstadoBadgeClass">@usuario.Estado</span>
+                                                        </div>
+                                                        <p class="mb-1">
+                                                            <i class="fas fa-id-card me-2 text-primary"></i>
+                                                            <strong>@usuario.RUT</strong>
+                                                        </p>
+                                                        <p class="mb-1 text-muted">
+                                                            <i class="fas fa-envelope me-2"></i>
+                                                            @(string.IsNullOrWhiteSpace(usuario.Email) ? "Sin email" : usuario.Email)
+                                                        </p>
+                                                        <p class="mb-3 text-muted">
+                                                            <i class="fas fa-phone me-2"></i>
+                                                            @(string.IsNullOrWhiteSpace(usuario.Telefono) ? "Sin teléfono" : usuario.Telefono)
+                                                        </p>
+                                                        <div class="d-flex flex-wrap gap-2 mb-3">
+                                                            <span class="badge bg-primary">
+                                                                Préstamos activos: @usuario.PrestamosActivos
+                                                            </span>
+                                                            @if (usuario.PrestamosVencidos > 0)
+                                                            {
+                                                                <span class="badge bg-danger">
+                                                                    Vencidos: @usuario.PrestamosVencidos
+                                                                </span>
+                                                            }
+                                                        </div>
+                                                        <div class="form-check">
+                                                            <input class="form-check-input seleccionar-credencial" type="checkbox" name="seleccionados" value="@usuario.Id" data-curso="@collapseId" id="cred-@usuario.Id">
+                                                            <label class="form-check-label" for="cred-@usuario.Id">
+                                                                Incluir en este lote
+                                                            </label>
+                                                        </div>
+                                                    </div>
+                                                    <div class="card-footer bg-transparent border-0 pt-0">
+                                                        <div class="btn-group w-100" role="group">
+                                                            <a asp-action="Details" asp-route-id="@usuario.Id"
+                                                               class="btn btn-outline-info btn-sm" title="Ver detalles">
+                                                                <i class="fas fa-eye"></i>
+                                                            </a>
+                                                            <a asp-action="Edit" asp-route-id="@usuario.Id"
+                                                               class="btn btn-outline-warning btn-sm" title="Editar">
+                                                                <i class="fas fa-edit"></i>
+                                                            </a>
+                                                            <a asp-action="Credencial" asp-route-id="@usuario.Id" target="_blank"
+                                                               class="btn btn-outline-primary btn-sm" title="Imprimir credencial individual">
+                                                                <i class="fas fa-id-badge"></i>
+                                                            </a>
+                                                            <a asp-action="Delete" asp-route-id="@usuario.Id"
+                                                               class="btn btn-outline-danger btn-sm" title="Eliminar">
+                                                                <i class="fas fa-trash"></i>
+                                                            </a>
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            </div>
                                         }
                                     </div>
-                                </td>
-                                <td class="text-center">
-                                    <div class="btn-group" role="group">
-                                        <a asp-action="Details" asp-route-id="@usuario.Id" 
-                                           class="btn btn-outline-info btn-sm" title="Ver detalles">
-                                            <i class="fas fa-eye"></i>
-                                        </a>
-                                        <a asp-action="Edit" asp-route-id="@usuario.Id" 
-                                           class="btn btn-outline-warning btn-sm" title="Editar">
-                                            <i class="fas fa-edit"></i>
-                                        </a>
-                                        <a asp-action="Delete" asp-route-id="@usuario.Id" 
-                                           class="btn btn-outline-danger btn-sm" title="Eliminar">
-                                            <i class="fas fa-trash"></i>
-                                        </a>
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                }
             </div>
         }
         else

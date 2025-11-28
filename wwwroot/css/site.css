@@ -492,6 +492,424 @@ textarea::selection {
     filter: invert(1);
 }
 
+/* Dark mode - Text colors */
+[data-theme="dark"] .text-dark,
+[data-theme="dark"] .text-black {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .text-muted {
+    color: var(--muted-text) !important;
+}
+
+[data-theme="dark"] .text-secondary {
+    color: #9ca3af !important;
+}
+
+[data-theme="dark"] .text-body {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] h1,
+[data-theme="dark"] h2,
+[data-theme="dark"] h3,
+[data-theme="dark"] h4,
+[data-theme="dark"] h5,
+[data-theme="dark"] h6,
+[data-theme="dark"] .h1,
+[data-theme="dark"] .h2,
+[data-theme="dark"] .h3,
+[data-theme="dark"] .h4,
+[data-theme="dark"] .h5,
+[data-theme="dark"] .h6 {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .text-primary {
+    color: var(--primary-color) !important;
+}
+
+[data-theme="dark"] .text-success {
+    color: var(--success-color) !important;
+}
+
+[data-theme="dark"] .text-danger {
+    color: var(--danger-color) !important;
+}
+
+[data-theme="dark"] .text-warning {
+    color: var(--warning-color) !important;
+}
+
+[data-theme="dark"] .text-info {
+    color: var(--info-color) !important;
+}
+
+/* Dark mode - Links */
+[data-theme="dark"] a:not(.btn):not(.nav-link):not(.dropdown-item):not(.badge) {
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] a:not(.btn):not(.nav-link):not(.dropdown-item):not(.badge):hover {
+    color: #93c5fd;
+}
+
+/* Dark mode - Borders */
+[data-theme="dark"] .border,
+[data-theme="dark"] .border-top,
+[data-theme="dark"] .border-bottom,
+[data-theme="dark"] .border-start,
+[data-theme="dark"] .border-end {
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .border-primary {
+    border-color: var(--primary-color) !important;
+}
+
+[data-theme="dark"] .border-success {
+    border-color: var(--success-color) !important;
+}
+
+[data-theme="dark"] .border-danger {
+    border-color: var(--danger-color) !important;
+}
+
+[data-theme="dark"] .border-warning {
+    border-color: var(--warning-color) !important;
+}
+
+[data-theme="dark"] .border-secondary {
+    border-color: #6b7280 !important;
+}
+
+/* Dark mode - Tables */
+[data-theme="dark"] .table {
+    color: var(--text-color);
+    --bs-table-bg: var(--surface-bg);
+    --bs-table-striped-bg: var(--surface-alt);
+    --bs-table-hover-bg: var(--table-hover);
+}
+
+[data-theme="dark"] .table thead th {
+    color: var(--text-color);
+    border-bottom-color: var(--border-color);
+    background-color: var(--surface-alt);
+}
+
+[data-theme="dark"] .table-danger {
+    --bs-table-bg: rgba(248, 113, 113, 0.15);
+    --bs-table-striped-bg: rgba(248, 113, 113, 0.2);
+    color: #fecaca;
+}
+
+[data-theme="dark"] .table-warning {
+    --bs-table-bg: rgba(251, 191, 36, 0.15);
+    --bs-table-striped-bg: rgba(251, 191, 36, 0.2);
+    color: #fde68a;
+}
+
+[data-theme="dark"] .table-success {
+    --bs-table-bg: rgba(34, 197, 94, 0.15);
+    --bs-table-striped-bg: rgba(34, 197, 94, 0.2);
+    color: #bbf7d0;
+}
+
+[data-theme="dark"] .table-info {
+    --bs-table-bg: rgba(14, 165, 233, 0.15);
+    --bs-table-striped-bg: rgba(14, 165, 233, 0.2);
+    color: #bae6fd;
+}
+
+/* Dark mode - Modals */
+[data-theme="dark"] .modal-content {
+    background-color: var(--surface-bg);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-header {
+    border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .modal-footer {
+    border-top-color: var(--border-color);
+}
+
+/* Dark mode - Form text and small elements */
+[data-theme="dark"] .form-text,
+[data-theme="dark"] small,
+[data-theme="dark"] .small {
+    color: var(--muted-text) !important;
+}
+
+/* Dark mode - Definition lists */
+[data-theme="dark"] dt {
+    color: var(--muted-text);
+}
+
+[data-theme="dark"] dd {
+    color: var(--text-color);
+}
+
+/* Dark mode - Breadcrumbs */
+[data-theme="dark"] .breadcrumb {
+    background-color: var(--surface-alt);
+}
+
+[data-theme="dark"] .breadcrumb-item a {
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .breadcrumb-item.active {
+    color: var(--muted-text);
+}
+
+/* Dark mode - Pagination */
+[data-theme="dark"] .page-link {
+    background-color: var(--surface-bg);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .page-link:hover {
+    background-color: var(--surface-alt);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .page-item.active .page-link {
+    background-color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .page-item.disabled .page-link {
+    background-color: var(--surface-bg);
+    color: var(--muted-text);
+}
+
+/* Dark mode - Alert links */
+[data-theme="dark"] .alert-link {
+    color: inherit;
+    font-weight: 700;
+}
+
+/* Dark mode - Input groups */
+[data-theme="dark"] .input-group-text {
+    background-color: var(--surface-alt);
+    border-color: var(--border-color);
+    color: var(--text-color);
+}
+
+/* Dark mode - Card titles and subtitles */
+[data-theme="dark"] .card-title {
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .card-subtitle {
+    color: var(--muted-text) !important;
+}
+
+/* Dark mode - Fst-italic text (often used for "sin asignar" etc) */
+[data-theme="dark"] .fst-italic {
+    color: var(--muted-text);
+}
+
+/* Dark mode - Btn outline variants */
+[data-theme="dark"] .btn-outline-primary {
+    color: var(--primary-color);
+    border-color: var(--primary-color);
+}
+
+[data-theme="dark"] .btn-outline-primary:hover,
+[data-theme="dark"] .btn-outline-primary.active {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .btn-outline-secondary {
+    color: #9ca3af;
+    border-color: #6b7280;
+}
+
+[data-theme="dark"] .btn-outline-secondary:hover {
+    background-color: #6b7280;
+    color: #ffffff;
+}
+
+[data-theme="dark"] .btn-outline-success {
+    color: var(--success-color);
+    border-color: var(--success-color);
+}
+
+[data-theme="dark"] .btn-outline-success:hover {
+    background-color: var(--success-color);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .btn-outline-danger {
+    color: var(--danger-color);
+    border-color: var(--danger-color);
+}
+
+[data-theme="dark"] .btn-outline-danger:hover {
+    background-color: var(--danger-color);
+    color: #ffffff;
+}
+
+[data-theme="dark"] .btn-outline-warning {
+    color: var(--warning-color);
+    border-color: var(--warning-color);
+}
+
+[data-theme="dark"] .btn-outline-warning:hover {
+    background-color: var(--warning-color);
+    color: #1f2937;
+}
+
+[data-theme="dark"] .btn-outline-info {
+    color: var(--info-color);
+    border-color: var(--info-color);
+}
+
+[data-theme="dark"] .btn-outline-info:hover {
+    background-color: var(--info-color);
+    color: #ffffff;
+}
+
+/* Dark mode - Alert light */
+[data-theme="dark"] .alert-light {
+    background-color: var(--surface-alt);
+    color: var(--text-color);
+    border-color: var(--border-color);
+}
+
+/* Dark mode - Strong and bold text */
+[data-theme="dark"] strong,
+[data-theme="dark"] b {
+    color: inherit;
+}
+
+/* Dark mode - Horizontal rule */
+[data-theme="dark"] hr {
+    border-color: var(--border-color);
+    opacity: 0.5;
+}
+
+/* Dark mode - Selection toolbar (ejemplares) */
+[data-theme="dark"] .selection-toolbar {
+    background-color: var(--surface-alt) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Dark mode - Code and pre */
+[data-theme="dark"] code {
+    color: #f472b6;
+    background-color: rgba(244, 114, 182, 0.1);
+}
+
+[data-theme="dark"] pre {
+    background-color: var(--surface-alt);
+    color: var(--text-color);
+}
+
+/* Dark mode - Scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar-track {
+    background: var(--surface-bg);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+    background: #4b5563;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+    background: #6b7280;
+}
+
+/* Dark mode - Popover */
+[data-theme="dark"] .popover {
+    background-color: var(--surface-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .popover-header {
+    background-color: var(--surface-alt);
+    border-bottom-color: var(--border-color);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .popover-body {
+    color: var(--text-color);
+}
+
+/* Dark mode - Tooltip */
+[data-theme="dark"] .tooltip-inner {
+    background-color: var(--surface-alt);
+    color: var(--text-color);
+}
+
+/* Dark mode - Progress bar background */
+[data-theme="dark"] .progress {
+    background-color: var(--surface-alt);
+}
+
+/* Dark mode - Nav tabs and pills */
+[data-theme="dark"] .nav-tabs {
+    border-bottom-color: var(--border-color);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link {
+    color: var(--muted-text);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link:hover {
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .nav-tabs .nav-link.active {
+    background-color: var(--surface-bg);
+    border-color: var(--border-color) var(--border-color) var(--surface-bg);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .nav-pills .nav-link {
+    color: var(--muted-text);
+}
+
+[data-theme="dark"] .nav-pills .nav-link.active {
+    background-color: var(--primary-color);
+    color: #ffffff;
+}
+
+/* Dark mode - Accordion */
+[data-theme="dark"] .accordion-item {
+    background-color: var(--surface-bg);
+    border-color: var(--border-color);
+}
+
+[data-theme="dark"] .accordion-button {
+    background-color: var(--surface-bg);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .accordion-button:not(.collapsed) {
+    background-color: var(--surface-alt);
+    color: var(--primary-color);
+}
+
+[data-theme="dark"] .accordion-button::after {
+    filter: invert(1);
+}
+
+/* Dark mode - Offcanvas */
+[data-theme="dark"] .offcanvas {
+    background-color: var(--surface-bg);
+    color: var(--text-color);
+}
+
+[data-theme="dark"] .offcanvas-header {
+    border-bottom-color: var(--border-color);
+}
+
 /* Print styles */
 @media print {
     .navbar,

@@ -5,6 +5,7 @@ using BibliotecaVirtualWeb.Models;
 using BibliotecaVirtualWeb.Utils;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Authorization;
+using System.Text.RegularExpressions;
 
 namespace BibliotecaVirtualWeb.Controllers
 {
@@ -29,6 +30,8 @@ namespace BibliotecaVirtualWeb.Controllers
             "3° Medio",
             "4° Medio"
         };
+        private static readonly Dictionary<string, string> CursosNormalizados = CursosChile
+            .ToDictionary(c => NormalizarCursoTexto(c), c => c);
 
         public UsuariosController(ApplicationDbContext context)
         {
@@ -38,25 +41,33 @@ namespace BibliotecaVirtualWeb.Controllers
         // GET: Usuarios
         public async Task<IActionResult> Index(string? searchString, string? estado)
         {
-            var usuarios = _context.Usuarios.AsQueryable();
-
-            if (!string.IsNullOrEmpty(searchString))
-            {
-                usuarios = usuarios.Where(u => u.Nombre.Contains(searchString) || 
-                                             u.Apellido.Contains(searchString) || 
-                                             u.RUT.Contains(searchString) ||
-                                             u.Email!.Contains(searchString));
-            }
+            var query = _context.Usuarios.AsQueryable();
 
             if (!string.IsNullOrEmpty(estado))
             {
-                usuarios = usuarios.Where(u => u.Estado == estado);
+                query = query.Where(u => u.Estado == estado);
+            }
+
+            var usuarios = await query
+                .OrderBy(u => u.Apellido)
+                .ThenBy(u => u.Nombre)
+                .ToListAsync();
+
+            if (!string.IsNullOrWhiteSpace(searchString))
+            {
+                usuarios = usuarios.Where(u =>
+                    ContieneTexto(u.Nombre, searchString) ||
+                    ContieneTexto(u.Apellido, searchString) ||
+                    ContieneTexto(u.RUT, searchString) ||
+                    ContieneTexto(u.Email, searchString) ||
+                    CoincideCurso(u.Curso, searchString)
+                ).ToList();
             }
 
             ViewBag.SearchString = searchString;
             ViewBag.EstadoSeleccionado = estado;
 
-            return View(await usuarios.OrderBy(u => u.Apellido).ThenBy(u => u.Nombre).ToListAsync());
+            return View(usuarios);
         }
 
         // GET: Usuarios/Details/5
@@ -87,6 +98,48 @@ namespace BibliotecaVirtualWeb.Controllers
             ViewBag.Prestamos = prestamos;
 
             return View(usuario);
+        }
+
+        public async Task<IActionResult> Credencial(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var usuario = await _context.Usuarios.FindAsync(id);
+            if (usuario == null)
+            {
+                return NotFound();
+            }
+
+            return View(usuario);
+        }
+
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImprimirCredenciales([FromForm] List<int>? seleccionados)
+        {
+            if (seleccionados == null || !seleccionados.Any())
+            {
+                TempData["WarningMessage"] = "Selecciona al menos un alumno para imprimir credenciales.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            var usuarios = await _context.Usuarios
+                .Where(u => seleccionados.Contains(u.Id))
+                .OrderBy(u => u.Curso)
+                .ThenBy(u => u.Apellido)
+                .ThenBy(u => u.Nombre)
+                .ToListAsync();
+
+            if (!usuarios.Any())
+            {
+                TempData["WarningMessage"] = "No se encontraron alumnos válidos para imprimir.";
+                return RedirectToAction(nameof(Index));
+            }
+
+            return View("CredencialesLote", usuarios);
         }
 
         // GET: Usuarios/Create
@@ -329,6 +382,87 @@ namespace BibliotecaVirtualWeb.Controllers
             {
                 ModelState.AddModelError("RUT", "Ya existe un usuario con este RUT.");
             }
+        }
+
+        private static bool ContieneTexto(string? origen, string termino)
+        {
+            if (string.IsNullOrWhiteSpace(origen))
+            {
+                return false;
+            }
+            return origen.Contains(termino, StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static bool CoincideCurso(string? cursoActual, string termino)
+        {
+            if (string.IsNullOrWhiteSpace(termino))
+            {
+                return false;
+            }
+
+            var normalizadoBusqueda = NormalizarCursoTexto(termino);
+            var normalizadoCurso = NormalizarCursoTexto(cursoActual);
+
+            if (normalizadoBusqueda == normalizadoCurso)
+            {
+                return true;
+            }
+
+            if (CursosNormalizados.TryGetValue(normalizadoBusqueda, out var cursoCanonico))
+            {
+                return NormalizarCursoTexto(cursoCanonico) == normalizadoCurso;
+            }
+
+            return normalizadoCurso.Contains(normalizadoBusqueda);
+        }
+
+        private static string NormalizarCursoTexto(string? texto)
+        {
+            if (string.IsNullOrWhiteSpace(texto))
+            {
+                return "sincurso";
+            }
+
+            var lower = texto
+                .ToLowerInvariant()
+                .Replace("º", "")
+                .Replace("°", "")
+                .Replace(".", "")
+                .Replace("-", "")
+                .Trim();
+
+            var equivalencias = new Dictionary<string, string>
+            {
+                { "primero", "1" },
+                { "segundo", "2" },
+                { "tercero", "3" },
+                { "cuarto", "4" },
+                { "quinto", "5" },
+                { "sexto", "6" },
+                { "séptimo", "7" },
+                { "septimo", "7" },
+                { "octavo", "8" },
+                { "noveno", "9" },
+                { "décimo", "10" },
+                { "decimo", "10" },
+                { "prekinder", "prekinder" },
+                { "pre-kinder", "prekinder" },
+                { "kinder", "kinder" }
+            };
+
+            foreach (var kvp in equivalencias)
+            {
+                lower = Regex.Replace(lower, kvp.Key, kvp.Value);
+            }
+
+            lower = Regex.Replace(lower, @"(\d+)\s*ro", "$1");
+            lower = Regex.Replace(lower, @"(\d+)\s*to", "$1");
+            lower = lower.Replace("basica", "basico").Replace("basica", "basico");
+            lower = lower.Replace("basico", "basico");
+            lower = lower.Replace("medio", "medio");
+            lower = Regex.Replace(lower, @"\s+", "");
+
+            return lower;
         }
     }
 }

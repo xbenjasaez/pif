@@ -1,0 +1,109 @@
+@model BibliotecaVirtualWeb.Models.Usuario
+@{
+    Layout = null;
+    var curso = string.IsNullOrWhiteSpace(Model.Curso) ? "Curso: N/D" : $"Curso: {Model.Curso}";
+}
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <title>Credencial - @Model.NombreCompleto</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
+    <style>
+        body {
+            background: #f2f4f7;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            padding: 2rem;
+        }
+        .credential-wrapper {
+            max-width: 420px;
+            margin: 0 auto;
+        }
+        .credential-card {
+            background: #fff;
+            border-radius: 16px;
+            box-shadow: 0 10px 25px rgba(0,0,0,0.1);
+            overflow: hidden;
+            position: relative;
+        }
+        .credential-header {
+            background: linear-gradient(135deg, #4e73df 0%, #224abe 100%);
+            color: #fff;
+            padding: 1.5rem;
+            text-align: center;
+        }
+        .credential-body {
+            padding: 2rem 1.75rem;
+        }
+        #barcode {
+            width: 100%;
+            height: 110px;
+        }
+        @@media print {
+            body { padding: 0; background: #fff; }
+            .controls { display: none; }
+            .credential-wrapper { max-width: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="credential-wrapper">
+        <div class="credential-card">
+            <div class="credential-header">
+                <h5 class="mb-0 text-uppercase">Biblioteca Escolar</h5>
+                <small>Credencial de Lector</small>
+            </div>
+            <div class="credential-body">
+                <h2 class="fw-bold">@Model.NombreCompleto</h2>
+                <p class="mb-1 text-muted">@curso</p>
+                <p class="mb-3">RUT: <strong>@Model.RUT</strong></p>
+                <svg id="barcode"></svg>
+                <p class="text-muted small mb-0">Presenta esta credencial para registrar tus préstamos.</p>
+            </div>
+        </div>
+        <div class="controls text-center mt-3">
+            <button class="btn btn-primary me-2" onclick="window.print()">
+                <i class="fas fa-print me-2"></i>Imprimir
+            </button>
+            <a asp-action="Index" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left me-2"></i>Volver
+            </a>
+        </div>
+    </div>
+
+    <script src="https://kit.fontawesome.com/a2e0e9cf0b.js" crossorigin="anonymous"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
+    <script>
+        function rutToEan13(rawRut) {
+            const digits = (rawRut || "").replace(/\D/g, "");
+            if (!digits) {
+                return null;
+            }
+            const padded = digits.padStart(12, "0");
+            return padded.slice(-12);
+        }
+
+        document.addEventListener("DOMContentLoaded", function () {
+            const target = document.getElementById("barcode");
+            const eanValue = rutToEan13("@Model.RUT");
+
+            if (!eanValue) {
+                target.insertAdjacentHTML("afterend", "<small class='text-danger'>No fue posible generar el código EAN13 para este RUT.</small>");
+                return;
+            }
+
+            JsBarcode(target, eanValue, {
+                format: "EAN13",
+                lineColor: "#111",
+                width: 1.8,
+                height: 90,
+                displayValue: true,
+                fontSize: 14,
+                margin: 0,
+                flat: true
+            });
+        });
+    </script>
+</body>
+</html>
+

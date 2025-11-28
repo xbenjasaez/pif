@@ -1,8 +1,13 @@
+using System;
+using System.Collections.Generic;
+using System.Linq;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using BibliotecaVirtualWeb.Data;
+using BibliotecaVirtualWeb.Helpers;
 using BibliotecaVirtualWeb.Models;
 using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Mvc.Filters;
 
 namespace BibliotecaVirtualWeb.Controllers
 {
@@ -10,20 +15,68 @@ namespace BibliotecaVirtualWeb.Controllers
     public class EjemplaresController : Controller
     {
         private readonly ApplicationDbContext _context;
+        private static bool _codigosMigrados;
 
         public EjemplaresController(ApplicationDbContext context)
         {
             _context = context;
         }
 
+        public override async Task OnActionExecutionAsync(ActionExecutingContext context, ActionExecutionDelegate next)
+        {
+            if (!_codigosMigrados)
+            {
+                await MigrarCodigosBarrasAsync();
+            }
+
+            await base.OnActionExecutionAsync(context, next);
+        }
+
         // GET: Ejemplares/Index?libroId=5
         public async Task<IActionResult> Index(int? libroId, string? busqueda, string? estado, string? orden = "recientes")
         {
+            var estadosDisponibles = new[] { "Todos", "Disponible", "Prestado", "Reservado", "En Reparacion", "Extraviado", "Dado de baja" };
+            var ordenNormalizado = string.IsNullOrWhiteSpace(orden) ? "recientes" : orden;
+            var estadoFiltrado = estado;
+
+            string libroTitulo = "Todos los libros";
+
+            // Determinar si hay filtros activos
+            bool hayBusqueda = !string.IsNullOrWhiteSpace(busqueda);
+            bool hayEstado = !string.IsNullOrWhiteSpace(estadoFiltrado) && estadoFiltrado != "Todos";
+            bool hayFiltro = libroId.HasValue || hayBusqueda || hayEstado;
+
+            // Si no hay filtros, mostrar solo el resumen global sin cargar ejemplares
+            if (!hayFiltro)
+            {
+                var resumenGlobal = new EjemplaresResumenViewModel
+                {
+                    Total = await _context.Ejemplares.CountAsync(),
+                    Disponibles = await _context.Ejemplares.CountAsync(e => e.Estado == "Disponible"),
+                    Prestados = await _context.Ejemplares.CountAsync(e => e.Estado == "Prestado"),
+                    Otros = await _context.Ejemplares.CountAsync(e => e.Estado != "Disponible" && e.Estado != "Prestado")
+                };
+
+                var viewModelVacio = new EjemplaresIndexViewModel
+                {
+                    Ejemplares = new List<Ejemplar>(),
+                    LibroId = null,
+                    LibroTitulo = libroTitulo,
+                    Busqueda = busqueda,
+                    EstadoSeleccionado = estadoFiltrado,
+                    OrdenSeleccionado = ordenNormalizado,
+                    EstadosDisponibles = estadosDisponibles,
+                    Resumen = resumenGlobal,
+                    MostrarMensajeBusqueda = true
+                };
+
+                return View(viewModelVacio);
+            }
+
+            // Si hay filtros, cargar los ejemplares correspondientes
             var query = _context.Ejemplares
                 .Include(e => e.Libro)
                 .AsQueryable();
-
-            string libroTitulo = "Todos los libros";
 
             if (libroId.HasValue)
             {
@@ -33,23 +86,20 @@ namespace BibliotecaVirtualWeb.Controllers
                 libroTitulo = libro?.Titulo ?? "Libro";
             }
 
-            if (!string.IsNullOrWhiteSpace(busqueda))
+            if (hayBusqueda)
             {
-                var term = $"%{busqueda.Trim()}%";
+                var term = $"%{busqueda!.Trim()}%";
                 query = query.Where(e =>
                     EF.Functions.Like(e.CodigoBarras, term) ||
                     (e.Libro != null && (EF.Functions.Like(e.Libro.Titulo, term) || EF.Functions.Like(e.Libro.Autor ?? string.Empty, term))) ||
                     (e.PrestadoA != null && EF.Functions.Like(e.PrestadoA, term)));
             }
 
-            var estadosDisponibles = new[] { "Todos", "Disponible", "Prestado", "Reservado", "En Reparacion", "Extraviado", "Dado de baja" };
-            var estadoFiltrado = estado;
-            if (!string.IsNullOrWhiteSpace(estadoFiltrado) && estadoFiltrado != "Todos")
+            if (hayEstado)
             {
                 query = query.Where(e => e.Estado == estadoFiltrado);
             }
 
-            var ordenNormalizado = string.IsNullOrWhiteSpace(orden) ? "recientes" : orden;
             query = ordenNormalizado switch
             {
                 "codigo" => query.OrderBy(e => e.CodigoBarras),
@@ -79,10 +129,41 @@ namespace BibliotecaVirtualWeb.Controllers
                 EstadoSeleccionado = estadoFiltrado,
                 OrdenSeleccionado = ordenNormalizado,
                 EstadosDisponibles = estadosDisponibles,
-                Resumen = resumen
+                Resumen = resumen,
+                MostrarMensajeBusqueda = false
             };
 
             return View(viewModel);
+        }
+
+        // GET: Ejemplares/Details/5
+        public async Task<IActionResult> Details(int? id)
+        {
+            if (id == null)
+            {
+                return NotFound();
+            }
+
+            var ejemplar = await _context.Ejemplares
+                .Include(e => e.Libro)
+                .FirstOrDefaultAsync(e => e.Id == id);
+
+            if (ejemplar == null)
+            {
+                return NotFound();
+            }
+
+            // Obtener historial de préstamos de este ejemplar
+            var historialPrestamos = await _context.Prestamos
+                .Include(p => p.Usuario)
+                .Where(p => p.EjemplarId == id)
+                .OrderByDescending(p => p.FechaPrestamo)
+                .Take(10)
+                .ToListAsync();
+
+            ViewBag.HistorialPrestamos = historialPrestamos;
+
+            return View(ejemplar);
         }
 
         // GET: Ejemplares/Create?libroId=5
@@ -112,7 +193,7 @@ namespace BibliotecaVirtualWeb.Controllers
         // POST: Ejemplares/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("LibroId,CodigoBarras,Estado,Notas")] Ejemplar ejemplar)
+        public async Task<IActionResult> Create([Bind("LibroId,CodigoBarras,Estado,Notas,Ubicacion")] Ejemplar ejemplar)
         {
             if (ejemplar.LibroId <= 0)
             {
@@ -125,15 +206,23 @@ namespace BibliotecaVirtualWeb.Controllers
             {
                 ejemplar.CodigoBarras = await GenerarCodigoBarrasUnico();
             }
-            else
+            else if (Ean13Helper.TryNormalize(ejemplar.CodigoBarras, out var codigoNormalizado, out var error))
             {
                 var codigoExistente = await _context.Ejemplares
-                    .AnyAsync(e => e.CodigoBarras == ejemplar.CodigoBarras);
+                    .AnyAsync(e => e.CodigoBarras == codigoNormalizado);
                 
                 if (codigoExistente)
                 {
                     ModelState.AddModelError("CodigoBarras", "Ya existe un ejemplar con este código de barras.");
                 }
+                else
+                {
+                    ejemplar.CodigoBarras = codigoNormalizado;
+                }
+            }
+            else
+            {
+                ModelState.AddModelError("CodigoBarras", error);
             }
 
             if (ModelState.IsValid)
@@ -150,6 +239,8 @@ namespace BibliotecaVirtualWeb.Controllers
                     await _context.SaveChangesAsync();
                     
                     TempData["SuccessMessage"] = $"Ejemplar creado correctamente. Código de barras: {ejemplar.CodigoBarras}";
+                    TempData["CodigosAImprimir"] = ejemplar.Id.ToString();
+                    TempData["AutoPrintCodigos"] = true;
                     
                     if (ejemplar.LibroId > 0)
                     {
@@ -231,14 +322,29 @@ namespace BibliotecaVirtualWeb.Controllers
 
             var ejemplaresCreados = 0;
             var errores = new List<string>();
+            var nuevosEjemplares = new List<Ejemplar>();
+            var prefijoNumerico = string.Concat((prefijoCodigo ?? string.Empty).Where(char.IsDigit));
+            var usarPrefijo = !string.IsNullOrWhiteSpace(prefijoNumerico);
 
             for (int i = 0; i < cantidad; i++)
             {
                 try
                 {
-                    var codigoBarras = string.IsNullOrEmpty(prefijoCodigo) 
-                        ? await GenerarCodigoBarrasUnico()
-                        : $"{prefijoCodigo}{i + 1:D6}";
+                    string codigoBarras;
+
+                    if (usarPrefijo)
+                    {
+                        var baseInput = $"{prefijoNumerico}{(i + 1):D6}";
+                        if (!Ean13Helper.TryNormalize(baseInput, out codigoBarras, out var errorPrefijo))
+                        {
+                            errores.Add($"Prefijo inválido para el ejemplar {i + 1}: {errorPrefijo}");
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        codigoBarras = await GenerarCodigoBarrasUnico();
+                    }
 
                     // Verificar que el código no exista
                     var existe = await _context.Ejemplares
@@ -258,6 +364,7 @@ namespace BibliotecaVirtualWeb.Controllers
                     };
 
                     _context.Add(ejemplar);
+                    nuevosEjemplares.Add(ejemplar);
                     ejemplaresCreados++;
                 }
                 catch (Exception ex)
@@ -270,6 +377,12 @@ namespace BibliotecaVirtualWeb.Controllers
             {
                 await _context.SaveChangesAsync();
                 TempData["SuccessMessage"] = $"Se crearon {ejemplaresCreados} ejemplar(es) correctamente para el libro '{libro.Titulo}'.";
+                
+                if (nuevosEjemplares.Any())
+                {
+                    TempData["CodigosAImprimir"] = string.Join(",", nuevosEjemplares.Select(e => e.Id));
+                    TempData["AutoPrintCodigos"] = true;
+                }
                 
                 if (errores.Any())
                 {
@@ -307,7 +420,7 @@ namespace BibliotecaVirtualWeb.Controllers
         // POST: Ejemplares/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,LibroId,CodigoBarras,Estado,Notas")] Ejemplar ejemplar)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,LibroId,CodigoBarras,Estado,Notas,Ubicacion")] Ejemplar ejemplar)
         {
             if (id != ejemplar.Id)
             {
@@ -317,30 +430,87 @@ namespace BibliotecaVirtualWeb.Controllers
             // Limpiar espacios en blanco del código de barras
             ejemplar.CodigoBarras = ejemplar.CodigoBarras?.Trim() ?? string.Empty;
             
-            if (string.IsNullOrWhiteSpace(ejemplar.CodigoBarras))
-            {
-                ModelState.AddModelError("CodigoBarras", "El código de barras es obligatorio.");
-            }
-            else
+            if (Ean13Helper.TryNormalize(ejemplar.CodigoBarras, out var codigoNormalizado, out var errorEdicion))
             {
                 // Validar que sea único (excepto el actual)
                 var codigoExistente = await _context.Ejemplares
-                    .AnyAsync(e => e.CodigoBarras == ejemplar.CodigoBarras && e.Id != ejemplar.Id);
+                    .AnyAsync(e => e.CodigoBarras == codigoNormalizado && e.Id != ejemplar.Id);
                 
                 if (codigoExistente)
                 {
                     ModelState.AddModelError("CodigoBarras", "Ya existe otro ejemplar con este código de barras.");
                 }
+                else
+                {
+                    ejemplar.CodigoBarras = codigoNormalizado;
+                }
+            }
+            else
+            {
+                var mensaje = string.IsNullOrWhiteSpace(ejemplar.CodigoBarras)
+                    ? "El código de barras es obligatorio."
+                    : errorEdicion;
+                ModelState.AddModelError("CodigoBarras", mensaje);
             }
 
             if (ModelState.IsValid)
             {
                 try
                 {
-                    var ejemplarOriginal = await _context.Ejemplares.FindAsync(id);
+                    var ejemplarOriginal = await _context.Ejemplares
+                        .Include(e => e.Libro)
+                        .FirstOrDefaultAsync(e => e.Id == id);
                     if (ejemplarOriginal == null)
                     {
                         return NotFound();
+                    }
+
+                    var estadoAnterior = ejemplarOriginal.Estado;
+                    var nuevoEstado = ejemplar.Estado;
+
+                    if (!string.Equals(estadoAnterior, nuevoEstado, StringComparison.OrdinalIgnoreCase))
+                    {
+                        if (string.Equals(nuevoEstado, "Disponible", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var prestamoActivo = await _context.Prestamos
+                                .Include(p => p.Usuario)
+                                .FirstOrDefaultAsync(p => p.EjemplarId == ejemplarOriginal.Id && p.Estado == "Activo");
+
+                            if (prestamoActivo != null)
+                            {
+                                prestamoActivo.Estado = "Devuelto";
+                                prestamoActivo.FechaDevolucion = DateTime.Now;
+                                _context.Entry(prestamoActivo).State = EntityState.Modified;
+
+                                if (prestamoActivo.Usuario != null && prestamoActivo.Usuario.PrestamosActivos > 0)
+                                {
+                                    prestamoActivo.Usuario.PrestamosActivos--;
+                                    _context.Entry(prestamoActivo.Usuario).State = EntityState.Modified;
+                                }
+                            }
+
+                            ejemplarOriginal.PrestadoA = null;
+                            ejemplarOriginal.FechaPrestamo = null;
+                        }
+                        else if (string.Equals(nuevoEstado, "Prestado", StringComparison.OrdinalIgnoreCase))
+                        {
+                            var prestamoActivo = await _context.Prestamos
+                                .Include(p => p.Usuario)
+                                .Where(p => p.EjemplarId == ejemplarOriginal.Id && p.Estado == "Activo")
+                                .OrderByDescending(p => p.FechaPrestamo)
+                                .FirstOrDefaultAsync();
+
+                            if (prestamoActivo?.Usuario != null)
+                            {
+                                ejemplarOriginal.PrestadoA = prestamoActivo.Usuario.NombreCompleto;
+                                ejemplarOriginal.FechaPrestamo = prestamoActivo.FechaPrestamo;
+                            }
+                        }
+                        else
+                        {
+                            ejemplarOriginal.PrestadoA = null;
+                            ejemplarOriginal.FechaPrestamo = null;
+                        }
                     }
 
                     ejemplarOriginal.CodigoBarras = ejemplar.CodigoBarras;
@@ -485,24 +655,86 @@ namespace BibliotecaVirtualWeb.Controllers
             return await CrearMultiple(libroId, cantidad, null);
         }
 
+        [HttpPost]
+        [ValidateAntiForgeryToken]
+        public async Task<IActionResult> ImprimirSeleccionados([FromForm] List<int>? seleccionados, int? libroId, bool autoPrint = false)
+        {
+            if (seleccionados == null || !seleccionados.Any())
+            {
+                TempData["WarningMessage"] = "Selecciona al menos un ejemplar para imprimir.";
+                return RedirectToAction(nameof(Index), new { libroId });
+            }
+
+            var ejemplares = await _context.Ejemplares
+                .Include(e => e.Libro)
+                .Where(e => seleccionados.Contains(e.Id))
+                .OrderBy(e => e.Libro != null ? e.Libro.Titulo : string.Empty)
+                .ThenBy(e => e.CodigoBarras)
+                .ToListAsync();
+
+            if (!ejemplares.Any())
+            {
+                TempData["WarningMessage"] = "No se encontraron ejemplares válidos para imprimir.";
+                return RedirectToAction(nameof(Index), new { libroId });
+            }
+
+            var titulo = libroId.HasValue && ejemplares.FirstOrDefault()?.Libro != null
+                ? $"Códigos de barras - {ejemplares.First().Libro!.Titulo}"
+                : "Códigos de barras de ejemplares";
+
+            var viewModel = new EjemplaresImprimirViewModel
+            {
+                Ejemplares = ejemplares,
+                LibroId = libroId,
+                TituloDocumento = titulo,
+                AutoPrint = autoPrint
+            };
+
+            return View("Imprimir", viewModel);
+        }
+
         private bool EjemplarExists(int id)
         {
             return _context.Ejemplares.Any(e => e.Id == id);
         }
 
+        private async Task MigrarCodigosBarrasAsync()
+        {
+            if (_codigosMigrados)
+            {
+                return;
+            }
+
+            var todosLosEjemplares = await _context.Ejemplares.ToListAsync();
+            var ejemplaresInvalidos = todosLosEjemplares
+                .Where(e => !Ean13Helper.EsCodigoValido(e.CodigoBarras ?? string.Empty))
+                .ToList();
+
+            if (ejemplaresInvalidos.Any())
+            {
+                var codigosReservados = new HashSet<string>(todosLosEjemplares.Select(e => e.CodigoBarras ?? string.Empty), StringComparer.Ordinal);
+
+                foreach (var ejemplar in ejemplaresInvalidos)
+                {
+                    string nuevoCodigo;
+                    do
+                    {
+                        nuevoCodigo = await GenerarCodigoBarrasUnico();
+                    } while (!codigosReservados.Add(nuevoCodigo));
+
+                    ejemplar.CodigoBarras = nuevoCodigo;
+                }
+
+                await _context.SaveChangesAsync();
+            }
+
+            _codigosMigrados = true;
+        }
+
         private async Task<string> GenerarCodigoBarrasUnico()
         {
-            var random = new Random();
-            string codigo;
-            bool existe;
-            
-            do
-            {
-                codigo = "EJ" + DateTime.Now.ToString("yyyyMMdd") + random.Next(1000, 9999).ToString();
-                existe = await _context.Ejemplares.AnyAsync(e => e.CodigoBarras == codigo);
-            } while (existe);
-
-            return codigo;
+            return await Ean13Helper.GenerarCodigoUnicoAsync(async codigo =>
+                await _context.Ejemplares.AnyAsync(e => e.CodigoBarras == codigo));
         }
     }
 }

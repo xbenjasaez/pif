@@ -83,40 +83,4 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
-    
-    <script>
-        $(document).ready(function() {
-            // Validación de RUT en tiempo real
-            $('input[name="RUT"]').on('input', function() {
-                var rut = $(this).val();
-                var input = $(this);
-                
-                if (rut.length > 0) {
-                    // Formatear RUT
-                    if (rut.length > 2 && !rut.includes('-')) {
-                        var numero = rut.slice(0, -1);
-                        var dv = rut.slice(-1);
-                        if (numero.length > 0) {
-                            var formateado = numero.replace(/\B(?=(\d{3})+(?!\d))/g, '.') + '-' + dv;
-                            input.val(formateado);
-                        }
-                    }
-                    
-                    // Validar RUT
-                    if (validateRUT(rut)) {
-                        input.removeClass('is-invalid').addClass('is-valid');
-                        input.next('.invalid-feedback').remove();
-                    } else {
-                        input.removeClass('is-valid').addClass('is-invalid');
-                        if (!input.next('.invalid-feedback').length) {
-                            input.after('<div class="invalid-feedback">RUT inválido</div>');
-                        }
-                    }
-                } else {
-                    input.removeClass('is-valid is-invalid');
-                    input.next('.invalid-feedback').remove();
-                }
-            });
-        });
-    </script>
 }

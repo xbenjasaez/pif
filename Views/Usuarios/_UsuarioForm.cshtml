@@ -25,9 +25,14 @@
     <div class="col-md-6">
         <div class="mb-3">
             <label asp-for="RUT" class="form-label"></label>
-            <input asp-for="RUT" class="form-control" placeholder="12345678-9" />
+            <input asp-for="RUT"
+                   class="form-control rut-input"
+                   placeholder="12.345.678-9"
+                   maxlength="12"
+                   autocomplete="off"
+                   inputmode="numeric" />
             <span asp-validation-for="RUT" class="text-danger"></span>
-            <div class="form-text">Formato: 12345678-9</div>
+            <div class="form-text">Formato: 12.345.678-9</div>
         </div>
     </div>
     <div class="col-md-6">

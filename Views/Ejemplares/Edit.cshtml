@@ -41,6 +41,16 @@
             </div>
 
             <div class="mb-3">
+                <label asp-for="Ubicacion" class="form-label">Ubicación</label>
+                <input asp-for="Ubicacion" class="form-control" placeholder="Ej: Estante A, Fila 3, Sección Infantil" />
+                <small class="form-text text-muted">
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    Indica dónde se encuentra físicamente este ejemplar en la biblioteca.
+                </small>
+                <span asp-validation-for="Ubicacion" class="text-danger"></span>
+            </div>
+
+            <div class="mb-3">
                 <label asp-for="Estado" class="form-label">Estado</label>
                 <select asp-for="Estado" class="form-select">
                     <option value="Disponible">Disponible</option>

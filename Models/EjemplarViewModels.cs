@@ -13,6 +13,11 @@ namespace BibliotecaVirtualWeb.Models
         public string OrdenSeleccionado { get; set; } = "recientes";
 
         public IEnumerable<string> EstadosDisponibles { get; set; } = Enumerable.Empty<string>();
+
+        /// <summary>
+        /// Indica si se debe mostrar el mensaje de "realiza una búsqueda" en lugar de la tabla.
+        /// </summary>
+        public bool MostrarMensajeBusqueda { get; set; }
     }
 
     public class EjemplaresResumenViewModel
@@ -21,6 +26,15 @@ namespace BibliotecaVirtualWeb.Models
         public int Disponibles { get; set; }
         public int Prestados { get; set; }
         public int Otros { get; set; }
+    }
+
+    public class EjemplaresImprimirViewModel
+    {
+        public List<Ejemplar> Ejemplares { get; set; } = new();
+        public int? LibroId { get; set; }
+        public string TituloDocumento { get; set; } = "Códigos de barras de ejemplares";
+        public DateTime GeneradoEl { get; set; } = DateTime.Now;
+        public bool AutoPrint { get; set; }
     }
 }
 
