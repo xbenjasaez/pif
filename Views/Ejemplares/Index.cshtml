@@ -75,6 +75,7 @@
 </div>
 
 <form method="get" class="card shadow-sm border-0 mb-4">
+    <input type="hidden" name="page" value="1" />
     <div class="card-body">
         @if (libroId.HasValue)
         {
@@ -320,6 +321,85 @@
                         </tbody>
                     </table>
                 </div>
+                
+                <!-- Paginación -->
+                @if (Model.TotalPages > 1)
+                {
+                    <nav aria-label="Navegación de páginas" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(Model.PageNumber == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="1"
+                                   asp-route-pageSize="@Model.PageSize"
+                                   asp-route-libroId="@Model.LibroId"
+                                   asp-route-busqueda="@Model.Busqueda"
+                                   asp-route-estado="@Model.EstadoSeleccionado"
+                                   asp-route-orden="@Model.OrdenSeleccionado">⟪</a>
+                            </li>
+                            <li class="page-item @(Model.PageNumber == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@(Model.PageNumber - 1)"
+                                   asp-route-pageSize="@Model.PageSize"
+                                   asp-route-libroId="@Model.LibroId"
+                                   asp-route-busqueda="@Model.Busqueda"
+                                   asp-route-estado="@Model.EstadoSeleccionado"
+                                   asp-route-orden="@Model.OrdenSeleccionado">Anterior</a>
+                            </li>
+                            @for (int i = 1; i <= Model.TotalPages; i++)
+                            {
+                                @if (i >= Model.PageNumber - 2 && i <= Model.PageNumber + 2)
+                                {
+                                    <li class="page-item @(i == Model.PageNumber ? "active" : "")">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@i"
+                                           asp-route-pageSize="@Model.PageSize"
+                                           asp-route-libroId="@Model.LibroId"
+                                           asp-route-busqueda="@Model.Busqueda"
+                                           asp-route-estado="@Model.EstadoSeleccionado"
+                                           asp-route-orden="@Model.OrdenSeleccionado">@i</a>
+                                    </li>
+                                }
+                                else if (i == 1 || i == Model.TotalPages)
+                                {
+                                    <li class="page-item @(i == Model.PageNumber ? "active" : "")">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@i"
+                                           asp-route-pageSize="@Model.PageSize"
+                                           asp-route-libroId="@Model.LibroId"
+                                           asp-route-busqueda="@Model.Busqueda"
+                                           asp-route-estado="@Model.EstadoSeleccionado"
+                                           asp-route-orden="@Model.OrdenSeleccionado">@i</a>
+                                    </li>
+                                }
+                                else if (i == Model.PageNumber - 3 || i == Model.PageNumber + 3)
+                                {
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                }
+                            }
+                            <li class="page-item @(Model.PageNumber == Model.TotalPages ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@(Model.PageNumber + 1)"
+                                   asp-route-pageSize="@Model.PageSize"
+                                   asp-route-libroId="@Model.LibroId"
+                                   asp-route-busqueda="@Model.Busqueda"
+                                   asp-route-estado="@Model.EstadoSeleccionado"
+                                   asp-route-orden="@Model.OrdenSeleccionado">Siguiente</a>
+                            </li>
+                            <li class="page-item @(Model.PageNumber == Model.TotalPages ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@Model.TotalPages"
+                                   asp-route-pageSize="@Model.PageSize"
+                                   asp-route-libroId="@Model.LibroId"
+                                   asp-route-busqueda="@Model.Busqueda"
+                                   asp-route-estado="@Model.EstadoSeleccionado"
+                                   asp-route-orden="@Model.OrdenSeleccionado">⟫</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Mostrando @(((Model.PageNumber - 1) * Model.PageSize) + 1) - @(Math.Min(Model.PageNumber * Model.PageSize, Model.TotalItems)) de @Model.TotalItems ejemplares.
+                    </div>
+                }
             </form>
         }
     </div>

@@ -33,6 +33,15 @@ namespace BibliotecaVirtualWeb.Models
         public string? EstadoSeleccionado { get; set; }
         public string? SearchString { get; set; }
         public PrestamosResumenViewModel Resumen { get; set; } = new();
+        
+        // Paginación
+        public int PaginaActual { get; set; } = 1;
+        public int TotalPaginas { get; set; } = 1;
+        public int ElementosPorPagina { get; set; } = 20;
+        public int TotalElementos { get; set; }
+        
+        public bool TienePaginaAnterior => PaginaActual > 1;
+        public bool TienePaginaSiguiente => PaginaActual < TotalPaginas;
     }
 }
 

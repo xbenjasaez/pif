@@ -25,8 +25,9 @@ namespace BibliotecaVirtualWeb.Controllers
             _auditoria = auditoria;
         }
 
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string? searchString, string? rol)
         {
+            // Cargar todos los usuarios internos
             var usuarios = await _userManager.Users
                 .OrderBy(u => u.Email)
                 .ToListAsync();
@@ -44,6 +45,42 @@ namespace BibliotecaVirtualWeb.Controllers
                     FechaRegistro = user.FechaRegistro
                 });
             }
+
+            // Filtro por rol
+            if (!string.IsNullOrWhiteSpace(rol))
+            {
+                lista = lista
+                    .Where(u => u.Roles != null && u.Roles.Contains(rol))
+                    .ToList();
+            }
+
+            // Filtro por texto (nombre o correo)
+            if (!string.IsNullOrWhiteSpace(searchString))
+            {
+                var term = searchString.Trim().ToLowerInvariant();
+                lista = lista.Where(u =>
+                        (!string.IsNullOrEmpty(u.Email) && u.Email.ToLowerInvariant().Contains(term)) ||
+                        (!string.IsNullOrEmpty(u.NombreCompleto) && u.NombreCompleto.ToLowerInvariant().Contains(term)))
+                    .ToList();
+            }
+
+            // Resumen por rol para mostrar en la vista
+            var resumenPorRol = lista
+                .SelectMany(u => (u.Roles != null && u.Roles.Any() ? u.Roles : new[] { "Sin rol" }))
+                .GroupBy(r => r)
+                .OrderByDescending(g => g.Count())
+                .ToDictionary(g => g.Key, g => g.Count());
+
+            var rolesDisponibles = await _roleManager.Roles
+                .OrderBy(r => r.Name)
+                .Select(r => r.Name!)
+                .ToListAsync();
+
+            ViewBag.SearchString = searchString;
+            ViewBag.RolSeleccionado = rol;
+            ViewBag.RolesDisponibles = rolesDisponibles;
+            ViewBag.ResumenPorRol = resumenPorRol;
+            ViewBag.TotalUsuarios = lista.Count;
 
             return View(lista);
         }

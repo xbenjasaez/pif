@@ -49,6 +49,20 @@
                     El lector funciona como un teclado: al terminar envía Enter automáticamente.
                 </div>
 
+                <div class="form-check form-switch mt-3">
+                    <input class="form-check-input" type="checkbox" id="marcarDaniado">
+                    <label class="form-check-label" for="marcarDaniado">
+                        El libro se devuelve <strong>dañado / deteriorado</strong>
+                    </label>
+                </div>
+                <div class="mt-2 d-none" id="notasDanoGrupo">
+                    <label for="notasDano" class="form-label small mb-1">Observación del daño (opcional)</label>
+                    <textarea id="notasDano"
+                              class="form-control form-control-sm"
+                              rows="2"
+                              placeholder="Ej: tapa rota, páginas mojadas, páginas rayadas, etc."></textarea>
+                </div>
+
                 <div class="alert alert-info mt-4" id="estadoInicial">
                     <i class="fas fa-info-circle me-2"></i>
                     Escanea un ejemplar para comenzar. También puedes presionar <strong>Ctrl + Shift + D</strong> desde cualquier pantalla para abrir este módulo.
@@ -159,6 +173,9 @@
             const token = tokenInput ? tokenInput.value : '';
             const buscadorPrestamoManual = document.getElementById('buscadorPrestamoManual');
             const sugerenciasPrestamos = document.getElementById('sugerenciasPrestamos');
+            const marcarDaniado = document.getElementById('marcarDaniado');
+            const notasDanoGrupo = document.getElementById('notasDanoGrupo');
+            const notasDano = document.getElementById('notasDano');
 
             const MAX_HISTORIAL = 5;
             const historialInicial = @Html.Raw(JsonSerializer.Serialize(Model?.DevolucionesRecientes ?? new List<BibliotecaVirtualWeb.Models.DevolucionRecienteViewModel>()));
@@ -181,6 +198,18 @@
                 }
                 input.focus();
                 input.select();
+            }
+
+            function resetEstadoFisico() {
+                if (marcarDaniado) {
+                    marcarDaniado.checked = false;
+                }
+                if (notasDano) {
+                    notasDano.value = '';
+                }
+                if (notasDanoGrupo) {
+                    notasDanoGrupo.classList.add('d-none');
+                }
             }
 
             function mostrarMensaje(elemento, mensaje) {
@@ -271,13 +300,19 @@
                 `;
                 resultadoExito.classList.remove('d-none');
 
+                const payload = {
+                    codigoBarras: codigo,
+                    marcarDaniado: marcarDaniado ? marcarDaniado.checked : false,
+                    notasDano: marcarDaniado && marcarDaniado.checked ? (notasDano?.value || null) : null
+                };
+
                 fetch('/Prestamos/DevolverPorCodigo', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
                         'X-CSRF-TOKEN': token
                     },
-                    body: JSON.stringify({ codigoBarras: codigo })
+                    body: JSON.stringify(payload)
                 })
                 .then(response => response.json())
                 .then(data => {
@@ -291,6 +326,7 @@
                         mostrarDetalle(data.data);
                         actualizarHistorial(data.data);
                         resetInput();
+                        resetEstadoFisico();
                     } else {
                         mostrarMensaje(resultadoError, data.message || 'No se pudo registrar la devolución.');
                         detalle.classList.add('d-none');
@@ -329,6 +365,19 @@
 
             // Mantener foco siempre en el input
             window.addEventListener('focus', () => resetInput(false));
+
+            if (marcarDaniado && notasDanoGrupo) {
+                marcarDaniado.addEventListener('change', function () {
+                    if (this.checked) {
+                        notasDanoGrupo.classList.remove('d-none');
+                    } else {
+                        notasDanoGrupo.classList.add('d-none');
+                        if (notasDano) {
+                            notasDano.value = '';
+                        }
+                    }
+                });
+            }
 
             const escapeHtml = (value) => {
                 if (!value) return '';

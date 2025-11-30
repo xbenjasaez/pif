@@ -1,0 +1,398 @@
+@model IEnumerable<BibliotecaVirtualWeb.Models.Libro>
+@{
+    ViewData["Title"] = "Catálogo de Libros";
+    var ejemplaresDisponibles = ViewBag.EjemplaresDisponibles as Dictionary<int, int> ?? new Dictionary<int, int>();
+    var totalEjemplares = ViewBag.TotalEjemplares as Dictionary<int, int> ?? new Dictionary<int, int>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-book-open me-2"></i>Catálogo de Libros
+    </h1>
+    <div class="d-flex gap-2">
+        <a asp-action="Index" class="btn btn-outline-secondary">
+            <i class="fas fa-cog me-1"></i>Vista de gestión
+        </a>
+        <a asp-action="Create" class="btn btn-primary">
+            <i class="fas fa-plus me-1"></i>Agregar Libro
+        </a>
+    </div>
+</div>
+
+<div class="row">
+    <!-- Panel izquierdo: Búsqueda y lista de libros -->
+    <div class="col-lg-5">
+        <div class="card shadow-sm mb-4">
+            <div class="card-header bg-primary text-white py-3">
+                <h6 class="mb-0"><i class="fas fa-search me-2"></i>Buscar en el catálogo</h6>
+            </div>
+            <div class="card-body">
+                <form method="get" id="formBusqueda">
+                    <div class="input-group input-group-lg mb-3">
+                        <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                        <input type="text" 
+                               class="form-control" 
+                               id="searchString" 
+                               name="searchString"
+                               value="@ViewBag.SearchString" 
+                               placeholder="Título, autor o ISBN..."
+                               autocomplete="off" />
+                        <button type="submit" class="btn btn-primary">Buscar</button>
+                    </div>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" id="categoria" name="categoria">
+                                <option value="">Todas las categorías</option>
+                                @foreach (var cat in ViewBag.Categorias ?? new List<string>())
+                                {
+                                    <option value="@cat" selected="@(ViewBag.CategoriaSeleccionada == cat)">@cat</option>
+                                }
+                            </select>
+                        </div>
+                        <div class="col-6">
+                            <select class="form-select form-select-sm" id="estado" name="estado">
+                                <option value="">Todos los estados</option>
+                                <option value="Disponible" selected="@(ViewBag.EstadoSeleccionado == "Disponible")">Disponible</option>
+                                <option value="Prestado" selected="@(ViewBag.EstadoSeleccionado == "Prestado")">Prestado</option>
+                            </select>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        @if (string.IsNullOrEmpty(ViewBag.SearchString as string) && 
+             string.IsNullOrEmpty(ViewBag.CategoriaSeleccionada as string) && 
+             string.IsNullOrEmpty(ViewBag.EstadoSeleccionado as string))
+        {
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-book-reader fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">Busca un libro para comenzar</h5>
+                    <p class="text-muted mb-0">
+                        Escribe el título, autor o ISBN del libro que deseas consultar.
+                    </p>
+                </div>
+            </div>
+        }
+        else if (!Model.Any())
+        {
+            <div class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-search fa-4x text-muted mb-3"></i>
+                    <h5 class="text-muted">No se encontraron libros</h5>
+                    <p class="text-muted mb-0">
+                        Intenta con otros términos de búsqueda.
+                    </p>
+                </div>
+            </div>
+        }
+        else
+        {
+            <div class="card shadow-sm">
+                <div class="card-header py-2 d-flex justify-content-between align-items-center">
+                    <span class="fw-semibold text-muted small">
+                        <i class="fas fa-list me-1"></i>@Model.Count() resultado(s)
+                    </span>
+                    <a asp-action="Catalogo" class="btn btn-sm btn-outline-secondary">
+                        <i class="fas fa-times me-1"></i>Limpiar
+                    </a>
+                </div>
+                <div class="list-group list-group-flush" id="listaLibros" style="max-height: 60vh; overflow-y: auto;">
+                    @foreach (var libro in Model)
+                    {
+                        var cantDisponible = ejemplaresDisponibles.ContainsKey(libro.Id) ? ejemplaresDisponibles[libro.Id] : 0;
+                        var cantTotal = totalEjemplares.ContainsKey(libro.Id) ? totalEjemplares[libro.Id] : 0;
+                        
+                        <a href="#" 
+                           class="list-group-item list-group-item-action libro-item py-3"
+                           data-libro-id="@libro.Id"
+                           data-libro-titulo="@libro.Titulo"
+                           data-libro-autor="@libro.Autor">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div class="flex-grow-1 me-2">
+                                    <h6 class="mb-1 text-truncate" style="max-width: 280px;" title="@libro.Titulo">
+                                        @libro.Titulo
+                                    </h6>
+                                    <p class="mb-1 text-muted small">@libro.Autor</p>
+                                    @if (!string.IsNullOrEmpty(libro.Editorial))
+                                    {
+                                        <small class="text-muted">@libro.Editorial</small>
+                                    }
+                                </div>
+                                <div class="text-end">
+                                    @if (cantDisponible > 0)
+                                    {
+                                        <span class="badge bg-success">@cantDisponible disp.</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">0 disp.</span>
+                                    }
+                                    <div class="small text-muted mt-1">@cantTotal total</div>
+                                </div>
+                            </div>
+                        </a>
+                    }
+                </div>
+            </div>
+        }
+    </div>
+
+    <!-- Panel derecho: Detalle del libro y ejemplares -->
+    <div class="col-lg-7">
+        <div id="panelEjemplares">
+            <!-- Estado inicial -->
+            <div id="panelInicial" class="card shadow-sm">
+                <div class="card-body text-center py-5">
+                    <i class="fas fa-hand-pointer fa-4x text-primary mb-3"></i>
+                    <h5 class="text-muted">Selecciona un libro</h5>
+                    <p class="text-muted mb-0">
+                        Haz clic en un libro de la lista para ver sus ejemplares disponibles.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Panel de carga -->
+            <div id="panelCargando" class="card shadow-sm d-none">
+                <div class="card-body text-center py-5">
+                    <div class="spinner-border text-primary mb-3" role="status">
+                        <span class="visually-hidden">Cargando...</span>
+                    </div>
+                    <h5 class="text-muted">Cargando ejemplares...</h5>
+                </div>
+            </div>
+
+            <!-- Panel de detalle -->
+            <div id="panelDetalle" class="d-none">
+                <div class="card shadow-sm mb-3">
+                    <div class="card-header bg-white py-3">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h5 class="mb-1" id="detalleLibroTitulo"></h5>
+                                <p class="text-muted mb-0" id="detalleLibroAutor"></p>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <a href="#" id="btnVerLibro" class="btn btn-outline-info btn-sm">
+                                    <i class="fas fa-eye me-1"></i>Ver libro
+                                </a>
+                                <a href="#" id="btnAgregarEjemplar" class="btn btn-primary btn-sm">
+                                    <i class="fas fa-plus me-1"></i>Agregar ejemplar
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="card-body p-0">
+                        <div class="row g-0 text-center border-bottom">
+                            <div class="col-4 py-3 border-end">
+                                <div class="h4 mb-0 text-primary" id="resumenTotal">0</div>
+                                <small class="text-muted">Total</small>
+                            </div>
+                            <div class="col-4 py-3 border-end">
+                                <div class="h4 mb-0 text-success" id="resumenDisponibles">0</div>
+                                <small class="text-muted">Disponibles</small>
+                            </div>
+                            <div class="col-4 py-3">
+                                <div class="h4 mb-0 text-danger" id="resumenPrestados">0</div>
+                                <small class="text-muted">Prestados</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card shadow-sm">
+                    <div class="card-header py-2">
+                        <h6 class="mb-0"><i class="fas fa-copy me-2"></i>Ejemplares</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover align-middle mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Ubicación</th>
+                                    <th>Estado</th>
+                                    <th>Prestado a</th>
+                                    <th class="text-center">Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody id="tablaEjemplares">
+                                <!-- Se llena dinámicamente -->
+                            </tbody>
+                        </table>
+                    </div>
+                    <div id="sinEjemplares" class="card-body text-center py-4 d-none">
+                        <i class="fas fa-inbox fa-2x text-muted mb-2"></i>
+                        <p class="text-muted mb-0">Este libro no tiene ejemplares registrados.</p>
+                        <a href="#" id="btnCrearPrimerEjemplar" class="btn btn-primary btn-sm mt-2">
+                            <i class="fas fa-plus me-1"></i>Crear primer ejemplar
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            const listaLibros = document.getElementById('listaLibros');
+            const panelInicial = document.getElementById('panelInicial');
+            const panelCargando = document.getElementById('panelCargando');
+            const panelDetalle = document.getElementById('panelDetalle');
+            const detalleLibroTitulo = document.getElementById('detalleLibroTitulo');
+            const detalleLibroAutor = document.getElementById('detalleLibroAutor');
+            const btnVerLibro = document.getElementById('btnVerLibro');
+            const btnAgregarEjemplar = document.getElementById('btnAgregarEjemplar');
+            const btnCrearPrimerEjemplar = document.getElementById('btnCrearPrimerEjemplar');
+            const tablaEjemplares = document.getElementById('tablaEjemplares');
+            const sinEjemplares = document.getElementById('sinEjemplares');
+            const resumenTotal = document.getElementById('resumenTotal');
+            const resumenDisponibles = document.getElementById('resumenDisponibles');
+            const resumenPrestados = document.getElementById('resumenPrestados');
+
+            let libroSeleccionadoId = null;
+
+            function mostrarPanel(panel) {
+                panelInicial.classList.add('d-none');
+                panelCargando.classList.add('d-none');
+                panelDetalle.classList.add('d-none');
+                panel.classList.remove('d-none');
+            }
+
+            function escapeHtml(text) {
+                if (!text) return '';
+                const div = document.createElement('div');
+                div.textContent = text;
+                return div.innerHTML;
+            }
+
+            function getBadgeClass(estado) {
+                const badges = {
+                    'Disponible': 'badge bg-success',
+                    'Prestado': 'badge bg-danger',
+                    'Reservado': 'badge bg-warning',
+                    'Deteriorado': 'badge bg-warning text-dark',
+                    'En Reparacion': 'badge bg-info',
+                    'Extraviado': 'badge bg-dark',
+                    'Dado de baja': 'badge bg-secondary'
+                };
+                return badges[estado] || 'badge bg-secondary';
+            }
+
+            function cargarEjemplares(libroId, titulo, autor) {
+                libroSeleccionadoId = libroId;
+                
+                // Actualizar UI
+                detalleLibroTitulo.textContent = titulo;
+                detalleLibroAutor.textContent = autor;
+                btnVerLibro.href = `/Libros/Details/${libroId}`;
+                btnAgregarEjemplar.href = `/Ejemplares/Create?libroId=${libroId}`;
+                btnCrearPrimerEjemplar.href = `/Ejemplares/Create?libroId=${libroId}`;
+
+                // Marcar libro activo
+                document.querySelectorAll('.libro-item').forEach(item => {
+                    item.classList.remove('active');
+                });
+                document.querySelector(`.libro-item[data-libro-id="${libroId}"]`)?.classList.add('active');
+
+                mostrarPanel(panelCargando);
+
+                fetch(`/Libros/ObtenerEjemplares/${libroId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const ejemplares = data.ejemplares || [];
+                            
+                            // Actualizar resumen
+                            const total = ejemplares.length;
+                            const disponibles = ejemplares.filter(e => e.estado === 'Disponible' || e.estado === 'Deteriorado').length;
+                            const prestados = ejemplares.filter(e => e.estado === 'Prestado').length;
+                            
+                            resumenTotal.textContent = total;
+                            resumenDisponibles.textContent = disponibles;
+                            resumenPrestados.textContent = prestados;
+
+                            if (ejemplares.length === 0) {
+                                tablaEjemplares.innerHTML = '';
+                                sinEjemplares.classList.remove('d-none');
+                                tablaEjemplares.closest('.table-responsive').classList.add('d-none');
+                            } else {
+                                sinEjemplares.classList.add('d-none');
+                                tablaEjemplares.closest('.table-responsive').classList.remove('d-none');
+                                
+                                tablaEjemplares.innerHTML = ejemplares.map(e => `
+                                    <tr>
+                                        <td>
+                                            <a href="/Ejemplares/Details/${e.id}" class="text-decoration-none">
+                                                <i class="fas fa-barcode me-1"></i>
+                                                <strong>${escapeHtml(e.codigoBarras)}</strong>
+                                            </a>
+                                        </td>
+                                        <td>
+                                            ${e.ubicacion 
+                                                ? `<span class="text-primary"><i class="fas fa-map-marker-alt me-1"></i>${escapeHtml(e.ubicacion)}</span>` 
+                                                : '<span class="text-muted fst-italic">Sin asignar</span>'}
+                                        </td>
+                                        <td>
+                                            <span class="${getBadgeClass(e.estado)}">${escapeHtml(e.estado)}</span>
+                                            ${e.notas && e.estado === 'Deteriorado' 
+                                                ? `<br><small class="text-warning"><i class="fas fa-exclamation-triangle me-1"></i>${escapeHtml(e.notas)}</small>` 
+                                                : ''}
+                                        </td>
+                                        <td>
+                                            ${e.prestadoA 
+                                                ? `<span class="text-danger"><i class="fas fa-user me-1"></i>${escapeHtml(e.prestadoA)}</span>` 
+                                                : '<span class="text-muted">-</span>'}
+                                        </td>
+                                        <td class="text-center">
+                                            <div class="btn-group btn-group-sm">
+                                                <a href="/Ejemplares/Details/${e.id}" class="btn btn-outline-info" title="Ver detalles">
+                                                    <i class="fas fa-eye"></i>
+                                                </a>
+                                                <a href="/Ejemplares/Edit/${e.id}" class="btn btn-outline-warning" title="Editar">
+                                                    <i class="fas fa-edit"></i>
+                                                </a>
+                                            </div>
+                                        </td>
+                                    </tr>
+                                `).join('');
+                            }
+
+                            mostrarPanel(panelDetalle);
+                        } else {
+                            console.error('Error al cargar ejemplares:', data.message);
+                            mostrarPanel(panelInicial);
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        mostrarPanel(panelInicial);
+                    });
+            }
+
+            // Event listeners
+            if (listaLibros) {
+                listaLibros.addEventListener('click', function(e) {
+                    const libroItem = e.target.closest('.libro-item');
+                    if (libroItem) {
+                        e.preventDefault();
+                        const libroId = libroItem.dataset.libroId;
+                        const titulo = libroItem.dataset.libroTitulo;
+                        const autor = libroItem.dataset.libroAutor;
+                        cargarEjemplares(libroId, titulo, autor);
+                    }
+                });
+            }
+
+            // Auto-submit on filter change
+            document.getElementById('categoria')?.addEventListener('change', function() {
+                document.getElementById('formBusqueda').submit();
+            });
+            document.getElementById('estado')?.addEventListener('change', function() {
+                document.getElementById('formBusqueda').submit();
+            });
+        });
+    </script>
+}
+

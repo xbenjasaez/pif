@@ -67,6 +67,19 @@
                         </div>
                         <small class="text-muted mt-1">Código: <span id="libroCodigoSeleccionado"></span></small>
                     </div>
+                    
+                    <!-- Alerta de ejemplar deteriorado (persistente) -->
+                    <div class="alert alert-warning border-warning border-3 mb-3 d-none" id="alertaDeterioro">
+                        <div class="d-flex align-items-start">
+                            <i class="fas fa-exclamation-triangle fa-2x me-3 text-warning"></i>
+                            <div>
+                                <h6 class="alert-heading mb-1">
+                                    <strong>¡ATENCIÓN: Ejemplar en mal estado!</strong>
+                                </h6>
+                                <p class="mb-0" id="alertaDeterioroTexto"></p>
+                            </div>
+                        </div>
+                    </div>
 
                     <label for="usuarioInput" class="form-label fw-semibold">
                         2. RUT o ID del usuario
@@ -201,6 +214,8 @@
             const contadorPrestamos = document.getElementById('contadorPrestamos');
             const usuarioEscaneadoAlert = document.getElementById('usuarioEscaneadoAlert');
             const usuarioEscaneadoTexto = document.getElementById('usuarioEscaneadoTexto');
+            const alertaDeterioro = document.getElementById('alertaDeterioro');
+            const alertaDeterioroTexto = document.getElementById('alertaDeterioroTexto');
             const tokenInput = document.querySelector('input[name="__RequestVerificationToken"]');
             const token = tokenInput ? tokenInput.value : '';
 
@@ -218,6 +233,17 @@
                 resultadoError.classList.add('d-none');
                 detallePrestamo.classList.add('d-none');
                 usuarioEscaneadoAlert.classList.add('d-none');
+                // NO ocultamos alertaDeterioro aquí - debe ser persistente
+            }
+            
+            function ocultarAlertaDeterioro() {
+                alertaDeterioro.classList.add('d-none');
+                alertaDeterioroTexto.textContent = '';
+            }
+            
+            function mostrarAlertaDeterioro(mensaje) {
+                alertaDeterioroTexto.textContent = mensaje;
+                alertaDeterioro.classList.remove('d-none');
             }
 
             function escapeHtml(value) {
@@ -268,12 +294,13 @@
 
             function resetFormulario() {
                 ejemplarSeleccionado = null;
-                 usuarioSeleccionado = null;
+                usuarioSeleccionado = null;
                 codigoEjemplarInput.value = '';
                 usuarioInput.value = '';
                 paso1.classList.remove('d-none');
                 paso2.classList.add('d-none');
                 ocultarMensajes();
+                ocultarAlertaDeterioro(); // Ocultar alerta de deterioro al resetear
                 estadoInicial.classList.remove('d-none');
                 codigoEjemplarInput.focus();
                 ocultarSugerencias();
@@ -298,7 +325,15 @@
                             libroSeleccionado.textContent = autorNombre
                                 ? `${libroNombre} — ${autorNombre}`
                                 : libroNombre;
-                        libroCodigoSeleccionado.textContent = data.ejemplar?.codigoBarras || '';
+                            libroCodigoSeleccionado.textContent = data.ejemplar?.codigoBarras || '';
+                            
+                            // Mostrar advertencia si el ejemplar está deteriorado
+                            if (data.advertencia && data.mensajeAdvertencia) {
+                                mostrarAlertaDeterioro(data.mensajeAdvertencia);
+                            } else {
+                                ocultarAlertaDeterioro();
+                            }
+                            
                             paso1.classList.add('d-none');
                             paso2.classList.remove('d-none');
                             usuarioInput.focus();
@@ -347,7 +382,6 @@
                         mostrarDetallePrestamo(data.data);
                         actualizarHistorial(data.data);
                         incrementarPrestamosHoy();
-                        setTimeout(() => resetFormulario(), 3000);
                     } else {
                         mostrarMensaje(resultadoError, data.message || 'No se pudo crear el préstamo.');
                     }

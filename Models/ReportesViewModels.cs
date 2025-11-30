@@ -55,6 +55,10 @@ namespace BibliotecaVirtualWeb.Models
         public List<CursoActividadViewModel> CursosConRiesgo { get; set; } = new();
         public string? GeneradoPor { get; set; }
         public ReportesChartViewModel ChartData { get; set; } = new();
+        public string? EditorialMasLibros { get; set; }
+        public int CantidadLibrosEditorial { get; set; }
+        public List<string> TopEditorialesLabels { get; set; } = new();
+        public List<int> TopEditorialesValores { get; set; } = new();
     }
 
     public class CategoriaPopularViewModel

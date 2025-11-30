@@ -57,6 +57,7 @@ namespace BibliotecaVirtualWeb.Models
             "Disponible" => "badge bg-success",
             "Prestado" => "badge bg-danger",
             "Reservado" => "badge bg-warning",
+            "Deteriorado" => "badge bg-warning text-dark",
             "En Reparacion" => "badge bg-info",
             "Extraviado" => "badge bg-dark",
             "Dado de baja" => "badge bg-secondary",

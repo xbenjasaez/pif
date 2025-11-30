@@ -6,6 +6,7 @@ using BibliotecaVirtualWeb.Utils;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.AspNetCore.Authorization;
 using System.Text.RegularExpressions;
+using System.Collections.Generic;
 
 namespace BibliotecaVirtualWeb.Controllers
 {
@@ -30,6 +31,10 @@ namespace BibliotecaVirtualWeb.Controllers
             "3° Medio",
             "4° Medio"
         };
+        private static readonly HashSet<string> LetrasCursoValidas = new(StringComparer.OrdinalIgnoreCase)
+        {
+            "A","B","C","D","E","F"
+        };
         private static readonly Dictionary<string, string> CursosNormalizados = CursosChile
             .ToDictionary(c => NormalizarCursoTexto(c), c => c);
 
@@ -39,7 +44,7 @@ namespace BibliotecaVirtualWeb.Controllers
         }
 
         // GET: Usuarios
-        public async Task<IActionResult> Index(string? searchString, string? estado)
+        public async Task<IActionResult> Index(string? searchString, string? estado, string? tipoUsuario)
         {
             var query = _context.Usuarios.AsQueryable();
 
@@ -48,8 +53,16 @@ namespace BibliotecaVirtualWeb.Controllers
                 query = query.Where(u => u.Estado == estado);
             }
 
+            if (!string.IsNullOrEmpty(tipoUsuario))
+            {
+                query = query.Where(u => u.TipoUsuario == tipoUsuario);
+            }
+
             var usuarios = await query
-                .OrderBy(u => u.Apellido)
+                .OrderBy(u => u.TipoUsuario)
+                .ThenBy(u => u.Curso)
+                .ThenBy(u => u.LetraCurso)
+                .ThenBy(u => u.Apellido)
                 .ThenBy(u => u.Nombre)
                 .ToListAsync();
 
@@ -60,12 +73,14 @@ namespace BibliotecaVirtualWeb.Controllers
                     ContieneTexto(u.Apellido, searchString) ||
                     ContieneTexto(u.RUT, searchString) ||
                     ContieneTexto(u.Email, searchString) ||
-                    CoincideCurso(u.Curso, searchString)
+                    ContieneTexto(u.CursoConLetra, searchString) ||
+                    CoincideCurso(u.Curso, searchString, u.LetraCurso)
                 ).ToList();
             }
 
             ViewBag.SearchString = searchString;
             ViewBag.EstadoSeleccionado = estado;
+            ViewBag.TipoUsuarioSeleccionado = tipoUsuario;
 
             return View(usuarios);
         }
@@ -78,8 +93,35 @@ namespace BibliotecaVirtualWeb.Controllers
                 return NotFound();
             }
 
-            var usuario = await _context.Usuarios
-                .FirstOrDefaultAsync(m => m.Id == id);
+            Usuario? usuario = null;
+
+            // Intentar cargar usuario con logros
+            try 
+            {
+                usuario = await _context.Usuarios
+                    .Include(u => u.UsuarioLogros)
+                        .ThenInclude(ul => ul.Logro)
+                    .FirstOrDefaultAsync(m => m.Id == id);
+            }
+            catch (Exception ex)
+            {
+                // Si falla (posiblemente por esquema de base de datos desactualizado), cargar usuario simple
+                Console.WriteLine($"Error cargando logros de usuario: {ex.Message}");
+            }
+
+            // Si falló la carga con includes o no se encontró, intentamos carga simple
+            if (usuario == null)
+            {
+                try 
+                {
+                    usuario = await _context.Usuarios.FirstOrDefaultAsync(m => m.Id == id);
+                }
+                catch (Exception ex)
+                {
+                     Console.WriteLine($"Error cargando usuario simple: {ex.Message}");
+                     return StatusCode(500, "Error interno al cargar el usuario.");
+                }
+            }
 
             if (usuario == null)
             {
@@ -87,13 +129,23 @@ namespace BibliotecaVirtualWeb.Controllers
             }
 
             // Cargar préstamos del usuario
-            var prestamos = await _context.Prestamos
-                .Where(p => p.UsuarioId == id)
-                .Include(p => p.Ejemplar)
-                    .ThenInclude(e => e.Libro)
-                .OrderByDescending(p => p.FechaPrestamo)
-                .Take(10)
-                .ToListAsync();
+            var prestamos = new List<Prestamo>();
+            try 
+            {
+                prestamos = await _context.Prestamos
+                    .Where(p => p.UsuarioId == id)
+                    .Include(p => p.Ejemplar)
+                        .ThenInclude(e => e.Libro)
+                    .Include(p => p.Libro)
+                    .OrderByDescending(p => p.FechaPrestamo)
+                    .Take(10)
+                    .ToListAsync();
+            }
+            catch
+            {
+                // Si falla la carga de préstamos, continuamos con la lista vacía
+                // para no impedir ver el detalle del usuario
+            }
 
             ViewBag.Prestamos = prestamos;
 
@@ -129,6 +181,7 @@ namespace BibliotecaVirtualWeb.Controllers
             var usuarios = await _context.Usuarios
                 .Where(u => seleccionados.Contains(u.Id))
                 .OrderBy(u => u.Curso)
+                .ThenBy(u => u.LetraCurso)
                 .ThenBy(u => u.Apellido)
                 .ThenBy(u => u.Nombre)
                 .ToListAsync();
@@ -152,9 +205,35 @@ namespace BibliotecaVirtualWeb.Controllers
         // POST: Usuarios/Create
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Create([Bind("Nombre,Apellido,RUT,Email,Telefono,Estado,Notas,Curso")] Usuario usuario)
+        public async Task<IActionResult> Create([Bind("Nombre,Apellido,RUT,Email,Telefono,Estado,Notas,Curso,LetraCurso,Genero,TipoUsuario")] Usuario usuario)
         {
             await ValidarRutAsync(usuario);
+            
+            // Establecer TipoUsuario por defecto si no viene
+            if (string.IsNullOrWhiteSpace(usuario.TipoUsuario))
+            {
+                usuario.TipoUsuario = "Alumno";
+            }
+            
+            // Validar según tipo de usuario
+            if (usuario.TipoUsuario == "Alumno")
+            {
+                if (string.IsNullOrWhiteSpace(usuario.Curso))
+                {
+                    ModelState.AddModelError("Curso", "El curso es obligatorio para alumnos.");
+                }
+                usuario.LetraCurso = NormalizarLetraCurso(usuario.LetraCurso);
+                if (string.IsNullOrEmpty(usuario.LetraCurso))
+                {
+                    ModelState.AddModelError("LetraCurso", "Selecciona una letra de curso válida (A-F).");
+                }
+            }
+            else if (usuario.TipoUsuario == "Profesor")
+            {
+                // Para profesores, curso y letra no son requeridos - asegurar que sean null
+                usuario.Curso = null;
+                usuario.LetraCurso = null;
+            }
 
             if (ModelState.IsValid)
             {
@@ -208,7 +287,7 @@ namespace BibliotecaVirtualWeb.Controllers
         // POST: Usuarios/Edit/5
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> Edit(int id, [Bind("Id,Nombre,Apellido,RUT,Email,Telefono,Estado,Notas,PrestamosActivos,PrestamosVencidos,FechaRegistro,Curso")] Usuario usuario)
+        public async Task<IActionResult> Edit(int id, [Bind("Id,Nombre,Apellido,RUT,Email,Telefono,Estado,Notas,PrestamosActivos,PrestamosVencidos,FechaRegistro,Curso,LetraCurso,Genero,TipoUsuario")] Usuario usuario)
         {
             if (id != usuario.Id)
             {
@@ -216,6 +295,32 @@ namespace BibliotecaVirtualWeb.Controllers
             }
 
             await ValidarRutAsync(usuario, id);
+            
+            // Establecer TipoUsuario por defecto si no viene
+            if (string.IsNullOrWhiteSpace(usuario.TipoUsuario))
+            {
+                usuario.TipoUsuario = "Alumno";
+            }
+            
+            // Validar según tipo de usuario
+            if (usuario.TipoUsuario == "Alumno")
+            {
+                if (string.IsNullOrWhiteSpace(usuario.Curso))
+                {
+                    ModelState.AddModelError("Curso", "El curso es obligatorio para alumnos.");
+                }
+                usuario.LetraCurso = NormalizarLetraCurso(usuario.LetraCurso);
+                if (string.IsNullOrEmpty(usuario.LetraCurso))
+                {
+                    ModelState.AddModelError("LetraCurso", "Selecciona una letra de curso válida (A-F).");
+                }
+            }
+            else if (usuario.TipoUsuario == "Profesor")
+            {
+                // Para profesores, curso y letra no son requeridos - asegurar que sean null
+                usuario.Curso = null;
+                usuario.LetraCurso = null;
+            }
 
             if (ModelState.IsValid)
             {
@@ -225,7 +330,7 @@ namespace BibliotecaVirtualWeb.Controllers
                     await _context.SaveChangesAsync();
                     TempData["SuccessMessage"] = "Usuario actualizado correctamente.";
                 }
-                catch (DbUpdateConcurrencyException ex)
+                catch (DbUpdateConcurrencyException)
                 {
                     if (!UsuarioExists(usuario.Id))
                     {
@@ -393,7 +498,7 @@ namespace BibliotecaVirtualWeb.Controllers
             return origen.Contains(termino, StringComparison.OrdinalIgnoreCase);
         }
 
-        private static bool CoincideCurso(string? cursoActual, string termino)
+        private static bool CoincideCurso(string? cursoActual, string termino, string? letraCurso = null)
         {
             if (string.IsNullOrWhiteSpace(termino))
             {
@@ -402,18 +507,75 @@ namespace BibliotecaVirtualWeb.Controllers
 
             var normalizadoBusqueda = NormalizarCursoTexto(termino);
             var normalizadoCurso = NormalizarCursoTexto(cursoActual);
+            var cursoConLetra = ConstruirCursoConLetra(cursoActual, letraCurso);
+            var normalizadoCursoConLetra = NormalizarCursoTexto(cursoConLetra);
+
+            if (!string.Equals(normalizadoCursoConLetra, "sincurso", StringComparison.OrdinalIgnoreCase) &&
+                normalizadoBusqueda == normalizadoCursoConLetra)
+            {
+                return true;
+            }
 
             if (normalizadoBusqueda == normalizadoCurso)
             {
                 return true;
             }
 
-            if (CursosNormalizados.TryGetValue(normalizadoBusqueda, out var cursoCanonico))
+            if (CursosNormalizados.TryGetValue(normalizadoBusqueda, out var cursoCanonicoDirecto))
             {
-                return NormalizarCursoTexto(cursoCanonico) == normalizadoCurso;
+                if (NormalizarCursoTexto(cursoCanonicoDirecto) == normalizadoCurso)
+                {
+                    return true;
+                }
             }
 
-            return normalizadoCurso.Contains(normalizadoBusqueda);
+            if (normalizadoBusqueda.Length > 0)
+            {
+                var ultima = normalizadoBusqueda[^1];
+                if (ultima >= 'a' && ultima <= 'f')
+                {
+                    var busquedaSinLetra = normalizadoBusqueda[..^1];
+                    if (CursosNormalizados.TryGetValue(busquedaSinLetra, out var cursoCanonico))
+                    {
+                        if (NormalizarCursoTexto(cursoCanonico) == normalizadoCurso &&
+                            !string.IsNullOrWhiteSpace(letraCurso) &&
+                            char.ToLowerInvariant(letraCurso.Trim()[0]) == ultima)
+                        {
+                            return true;
+                        }
+                    }
+                }
+            }
+
+            return normalizadoCurso.Contains(normalizadoBusqueda) ||
+                (!string.Equals(normalizadoCursoConLetra, "sincurso", StringComparison.OrdinalIgnoreCase) &&
+                 normalizadoCursoConLetra.Contains(normalizadoBusqueda));
+        }
+
+        private static string ConstruirCursoConLetra(string? curso, string? letra)
+        {
+            if (string.IsNullOrWhiteSpace(curso))
+            {
+                return string.Empty;
+            }
+
+            if (string.IsNullOrWhiteSpace(letra))
+            {
+                return curso;
+            }
+
+            return $"{curso} {letra.Trim().ToUpperInvariant()}";
+        }
+
+        private static string NormalizarLetraCurso(string? letra)
+        {
+            if (string.IsNullOrWhiteSpace(letra))
+            {
+                return string.Empty;
+            }
+
+            var normalizada = letra.Trim().ToUpperInvariant();
+            return LetrasCursoValidas.Contains(normalizada) ? normalizada : string.Empty;
         }
 
         private static string NormalizarCursoTexto(string? texto)

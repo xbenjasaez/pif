@@ -19,7 +19,7 @@ namespace BibliotecaVirtualWeb.Controllers
         }
 
         // GET: Libros
-        public async Task<IActionResult> Index(string? searchString, string? categoria, string? estado)
+        public async Task<IActionResult> Index(string? searchString, string? categoria, string? estado, int page = 1, int pageSize = 20)
         {
             var libros = _context.Libros.Include(l => l.Proveedor).AsQueryable();
 
@@ -52,20 +52,8 @@ namespace BibliotecaVirtualWeb.Controllers
             ViewBag.CategoriaSeleccionada = categoria;
             ViewBag.EstadoSeleccionado = estado;
 
-            var librosList = await libros.OrderBy(l => l.Titulo).ToListAsync();
-            
-            // Obtener conteo de ejemplares disponibles por libro
-            var librosIds = librosList.Select(l => l.Id).ToList();
-            var ejemplaresDisponibles = await _context.Ejemplares
-                .Where(e => librosIds.Contains(e.LibroId) && e.Estado == "Disponible")
-                .GroupBy(e => e.LibroId)
-                .Select(g => new { LibroId = g.Key, Cantidad = g.Count() })
-                .ToDictionaryAsync(x => x.LibroId, x => x.Cantidad);
-
-            ViewBag.EjemplaresDisponibles = ejemplaresDisponibles;
-
-            // Ordenar por ubicación (A-Z, luego por número de repisa)
-            librosList = librosList.OrderBy(l => {
+            // Ordenar por ubicación (A-Z, luego por número de repisa) antes de paginar
+            var librosOrdenados = libros.AsEnumerable().OrderBy(l => {
                 if (string.IsNullOrEmpty(l.Ubicacion))
                     return "ZZ-999"; // Los sin ubicación van al final
                 
@@ -78,6 +66,34 @@ namespace BibliotecaVirtualWeb.Controllers
                 }
                 return l.Ubicacion; // Si no coincide el formato, ordenar alfabéticamente
             }).ToList();
+
+            // Contar total para paginación
+            var totalItems = librosOrdenados.Count;
+            var totalPages = (int)Math.Ceiling(totalItems / (double)pageSize);
+            
+            // Asegurar que la página sea válida
+            if (page < 1) page = 1;
+            if (page > totalPages && totalPages > 0) page = totalPages;
+
+            // Obtener solo los elementos de la página actual
+            var librosList = librosOrdenados
+                .Skip((page - 1) * pageSize)
+                .Take(pageSize)
+                .ToList();
+            
+            // Obtener conteo de ejemplares disponibles por libro
+            var librosIds = librosList.Select(l => l.Id).ToList();
+            var ejemplaresDisponibles = await _context.Ejemplares
+                .Where(e => librosIds.Contains(e.LibroId) && e.Estado == "Disponible")
+                .GroupBy(e => e.LibroId)
+                .Select(g => new { LibroId = g.Key, Cantidad = g.Count() })
+                .ToDictionaryAsync(x => x.LibroId, x => x.Cantidad);
+
+            ViewBag.EjemplaresDisponibles = ejemplaresDisponibles;
+            ViewBag.PageNumber = page;
+            ViewBag.PageSize = pageSize;
+            ViewBag.TotalItems = totalItems;
+            ViewBag.TotalPages = totalPages;
 
             return View(librosList);
         }
@@ -535,6 +551,140 @@ namespace BibliotecaVirtualWeb.Controllers
         {
             return await Ean13Helper.GenerarCodigoUnicoAsync(async codigo =>
                 await _context.Libros.AnyAsync(l => l.CodigoBarras == codigo));
+        }
+
+        // GET: Libros/Catalogo
+        public async Task<IActionResult> Catalogo(string? searchString, string? categoria, string? estado)
+        {
+            var libros = _context.Libros.Include(l => l.Proveedor).AsQueryable();
+
+            // Solo mostrar resultados si hay algún filtro aplicado
+            bool hayFiltros = !string.IsNullOrEmpty(searchString) || 
+                              !string.IsNullOrEmpty(categoria) || 
+                              !string.IsNullOrEmpty(estado);
+
+            if (!hayFiltros)
+            {
+                // Sin filtros, no mostrar libros
+                ViewBag.Categorias = await _context.Libros
+                    .Where(l => !string.IsNullOrEmpty(l.Categoria))
+                    .Select(l => l.Categoria!)
+                    .Distinct()
+                    .OrderBy(c => c)
+                    .ToListAsync();
+                ViewBag.SearchString = searchString;
+                ViewBag.CategoriaSeleccionada = categoria;
+                ViewBag.EstadoSeleccionado = estado;
+                ViewBag.EjemplaresDisponibles = new Dictionary<int, int>();
+                ViewBag.TotalEjemplares = new Dictionary<int, int>();
+                return View(new List<Libro>());
+            }
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                libros = libros.Where(l => l.Titulo.Contains(searchString) || 
+                                         l.Autor.Contains(searchString) || 
+                                         (l.ISBN != null && l.ISBN.Contains(searchString)) ||
+                                         (l.Editorial != null && l.Editorial.Contains(searchString)));
+            }
+
+            if (!string.IsNullOrEmpty(categoria))
+            {
+                libros = libros.Where(l => l.Categoria == categoria);
+            }
+
+            if (!string.IsNullOrEmpty(estado))
+            {
+                // Filtrar por disponibilidad de ejemplares
+                if (estado == "Disponible")
+                {
+                    var librosConDisponibles = await _context.Ejemplares
+                        .Where(e => e.Estado == "Disponible" || e.Estado == "Deteriorado")
+                        .Select(e => e.LibroId)
+                        .Distinct()
+                        .ToListAsync();
+                    libros = libros.Where(l => librosConDisponibles.Contains(l.Id));
+                }
+                else if (estado == "Prestado")
+                {
+                    var librosSinDisponibles = await _context.Ejemplares
+                        .GroupBy(e => e.LibroId)
+                        .Where(g => !g.Any(e => e.Estado == "Disponible" || e.Estado == "Deteriorado"))
+                        .Select(g => g.Key)
+                        .ToListAsync();
+                    libros = libros.Where(l => librosSinDisponibles.Contains(l.Id));
+                }
+            }
+
+            var categorias = await _context.Libros
+                .Where(l => !string.IsNullOrEmpty(l.Categoria))
+                .Select(l => l.Categoria!)
+                .Distinct()
+                .OrderBy(c => c)
+                .ToListAsync();
+
+            ViewBag.Categorias = categorias;
+            ViewBag.SearchString = searchString;
+            ViewBag.CategoriaSeleccionada = categoria;
+            ViewBag.EstadoSeleccionado = estado;
+
+            var librosList = await libros.OrderBy(l => l.Titulo).Take(50).ToListAsync();
+            
+            // Obtener conteo de ejemplares disponibles y totales por libro
+            var librosIds = librosList.Select(l => l.Id).ToList();
+            
+            var ejemplaresDisponibles = await _context.Ejemplares
+                .Where(e => librosIds.Contains(e.LibroId) && (e.Estado == "Disponible" || e.Estado == "Deteriorado"))
+                .GroupBy(e => e.LibroId)
+                .Select(g => new { LibroId = g.Key, Cantidad = g.Count() })
+                .ToDictionaryAsync(x => x.LibroId, x => x.Cantidad);
+
+            var totalEjemplares = await _context.Ejemplares
+                .Where(e => librosIds.Contains(e.LibroId))
+                .GroupBy(e => e.LibroId)
+                .Select(g => new { LibroId = g.Key, Cantidad = g.Count() })
+                .ToDictionaryAsync(x => x.LibroId, x => x.Cantidad);
+
+            ViewBag.EjemplaresDisponibles = ejemplaresDisponibles;
+            ViewBag.TotalEjemplares = totalEjemplares;
+
+            return View(librosList);
+        }
+
+        // GET: Libros/ObtenerEjemplares/5
+        [HttpGet]
+        public async Task<IActionResult> ObtenerEjemplares(int id)
+        {
+            var libro = await _context.Libros.FindAsync(id);
+            if (libro == null)
+            {
+                return Json(new { success = false, message = "Libro no encontrado" });
+            }
+
+            var ejemplares = await _context.Ejemplares
+                .Where(e => e.LibroId == id)
+                .OrderBy(e => e.Estado == "Disponible" ? 0 : e.Estado == "Deteriorado" ? 1 : 2)
+                .ThenBy(e => e.CodigoBarras)
+                .Select(e => new {
+                    id = e.Id,
+                    codigoBarras = e.CodigoBarras,
+                    estado = e.Estado,
+                    ubicacion = e.Ubicacion,
+                    prestadoA = e.PrestadoA,
+                    notas = e.Notas,
+                    fechaPrestamo = e.FechaPrestamo
+                })
+                .ToListAsync();
+
+            return Json(new { 
+                success = true, 
+                ejemplares = ejemplares,
+                libro = new {
+                    id = libro.Id,
+                    titulo = libro.Titulo,
+                    autor = libro.Autor
+                }
+            });
         }
     }
 }

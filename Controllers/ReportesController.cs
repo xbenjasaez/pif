@@ -411,16 +411,82 @@ namespace BibliotecaVirtualWeb.Controllers
                 .ToList();
 
             var chartData = new ReportesChartViewModel();
-            if (viewModel.EstadisticasMensuales.Any())
+            
+            // Construir gráfico de tendencia mensual con múltiples cursos
+            if (estadisticasTemp.Any())
             {
-                chartData.TendenciaLabels = viewModel.EstadisticasMensuales
-                    .Select(x => $"{culture.TextInfo.ToTitleCase(x.Mes)} {x.Año}")
+                // Obtener todos los meses únicos ordenados
+                var mesesUnicos = estadisticasTemp
+                    .Select(x => new { x.Año, x.MesNumero })
+                    .Distinct()
+                    .OrderBy(x => x.Año)
+                    .ThenBy(x => x.MesNumero)
                     .ToList();
-                chartData.TendenciaSeries.Add(new ChartSerieViewModel
+
+                chartData.TendenciaLabels = mesesUnicos
+                    .Select(x => $"{culture.DateTimeFormat.GetMonthName(x.MesNumero)} {x.Año}")
+                    .ToList();
+
+                // Si hay filtro de curso específico, mostrar solo ese curso
+                if (!string.IsNullOrWhiteSpace(filtro.CursoSeleccionado) && 
+                    !filtro.CursoSeleccionado.Equals("Todos", StringComparison.OrdinalIgnoreCase))
                 {
-                    Label = viewModel.EstadisticasMensuales.First().Segmento ?? "Global",
-                    Valores = viewModel.EstadisticasMensuales.Select(x => x.TotalPrestamos).ToList()
-                });
+                    var cursoFiltrado = filtro.CursoSeleccionado;
+                    var datosCurso = mesesUnicos.Select(mes =>
+                    {
+                        var estadistica = estadisticasTemp
+                            .FirstOrDefault(e => e.Año == mes.Año && 
+                                                e.MesNumero == mes.MesNumero && 
+                                                e.Segmento == cursoFiltrado);
+                        return estadistica?.TotalPrestamos ?? 0;
+                    }).ToList();
+
+                    chartData.TendenciaSeries.Add(new ChartSerieViewModel
+                    {
+                        Label = cursoFiltrado,
+                        Valores = datosCurso
+                    });
+                }
+                else
+                {
+                    // Mostrar los top 8 cursos más activos (sin filtro o "Todos")
+                    var cursosTop = estadisticasTemp
+                        .GroupBy(x => x.Segmento)
+                        .Select(g => new
+                        {
+                            Curso = g.Key,
+                            TotalPrestamos = g.Sum(x => x.TotalPrestamos)
+                        })
+                        .OrderByDescending(x => x.TotalPrestamos)
+                        .Take(8)
+                        .Select(x => x.Curso)
+                        .ToList();
+
+                    // Si no hay cursos, mostrar "Global"
+                    if (!cursosTop.Any())
+                    {
+                        cursosTop.Add("Global");
+                    }
+
+                    // Crear una serie para cada curso top
+                    foreach (var curso in cursosTop)
+                    {
+                        var datosCurso = mesesUnicos.Select(mes =>
+                        {
+                            var estadistica = estadisticasTemp
+                                .FirstOrDefault(e => e.Año == mes.Año && 
+                                                    e.MesNumero == mes.MesNumero && 
+                                                    e.Segmento == curso);
+                            return estadistica?.TotalPrestamos ?? 0;
+                        }).ToList();
+
+                        chartData.TendenciaSeries.Add(new ChartSerieViewModel
+                        {
+                            Label = curso,
+                            Valores = datosCurso
+                        });
+                    }
+                }
             }
 
             if (viewModel.CategoriasPopulares.Any())
@@ -438,6 +504,27 @@ namespace BibliotecaVirtualWeb.Controllers
             };
 
             viewModel.ChartData = chartData;
+
+            // Calcular las top 10 editoriales con más libros
+            var topEditoriales = await _context.Libros
+                .Where(l => !string.IsNullOrWhiteSpace(l.Editorial))
+                .GroupBy(l => l.Editorial)
+                .Select(g => new
+                {
+                    Editorial = g.Key,
+                    Cantidad = g.Count()
+                })
+                .OrderByDescending(x => x.Cantidad)
+                .Take(10)
+                .ToListAsync();
+
+            if (topEditoriales.Any())
+            {
+                viewModel.EditorialMasLibros = topEditoriales.First().Editorial;
+                viewModel.CantidadLibrosEditorial = topEditoriales.First().Cantidad;
+                viewModel.TopEditorialesLabels = topEditoriales.Select(e => e.Editorial ?? "Sin editorial").ToList();
+                viewModel.TopEditorialesValores = topEditoriales.Select(e => e.Cantidad).ToList();
+            }
 
             return viewModel;
         }

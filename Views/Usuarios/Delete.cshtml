@@ -19,7 +19,7 @@
 
         @if (ViewBag.PrestamosActivos != null)
         {
-            var prestamos = ViewBag.PrestamosActivos as IEnumerable<BibliotecaVirtualWeb.Models.Prestamo>;
+            var prestamos = ViewBag.PrestamosActivos as IEnumerable<BibliotecaVirtualWeb.Models.Prestamo> ?? Enumerable.Empty<BibliotecaVirtualWeb.Models.Prestamo>();
             <div class="alert alert-danger mb-3">
                 <h6 class="alert-heading"><i class="fas fa-exclamation-circle me-2"></i>Préstamos Activos</h6>
                 <p class="mb-2">Este usuario tiene actualmente prestados los siguientes libros:</p>

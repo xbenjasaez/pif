@@ -6,7 +6,7 @@
 <div class="d-flex justify-content-between align-items-center mb-4">
     <div>
         <h1 class="h3 text-primary mb-1"><i class="fas fa-users-cog me-2"></i>Usuarios internos</h1>
-        <p class="text-muted mb-0">Control total de cuentas con acceso al sistema</p>
+        <p class="text-muted mb-0">Control de las cuentas con acceso administrativo a la biblioteca</p>
     </div>
     <a asp-action="Create" class="btn btn-primary">
         <i class="fas fa-user-plus me-1"></i>Nuevo usuario
@@ -20,6 +20,83 @@
         <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
     </div>
 }
+
+<div class="row g-3 mb-3 mx-0">
+    <div class="col-lg-8">
+        <div class="card shadow-sm">
+            <div class="card-body">
+                <form method="get" class="row g-3 align-items-end">
+                    <div class="col-md-6">
+                        <label for="searchString" class="form-label">Buscar</label>
+                        <input type="text"
+                               id="searchString"
+                               name="searchString"
+                               value="@ViewBag.SearchString"
+                               class="form-control"
+                               placeholder="Nombre o correo..." />
+                    </div>
+                    <div class="col-md-4">
+                        <label for="rol" class="form-label">Rol</label>
+                        <select id="rol" name="rol" class="form-select">
+                            <option value="">Todos los roles</option>
+                            @if (ViewBag.RolesDisponibles is IEnumerable<string> rolesDisponibles)
+                            {
+                                foreach (var r in rolesDisponibles)
+                                {
+                                    <option value="@r" selected="@(ViewBag.RolSeleccionado == r)">@r</option>
+                                }
+                            }
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-grid">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search me-1"></i>Filtrar
+                        </button>
+                    </div>
+                    <div class="col-12">
+                        <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                            <i class="fas fa-times me-1"></i>Limpiar filtros
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">
+                    <i class="fas fa-chart-pie me-2"></i>Resumen rápido
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2">
+                    <strong>Total de usuarios:</strong>
+                    <span class="badge bg-primary ms-1">@ViewBag.TotalUsuarios</span>
+                </p>
+                @if (ViewBag.ResumenPorRol is IDictionary<string, int> resumen && resumen.Any())
+                {
+                    <ul class="list-unstyled mb-0">
+                        @foreach (var kvp in resumen)
+                        {
+                            <li class="d-flex justify-content-between align-items-center mb-1">
+                                <span>
+                                    <i class="fas fa-user-tag me-1 text-muted"></i>@kvp.Key
+                                </span>
+                                <span class="badge bg-light text-dark">@kvp.Value</span>
+                            </li>
+                        }
+                    </ul>
+                }
+                else
+                {
+                    <p class="text-muted mb-0 small">Sin datos de roles disponibles.</p>
+                }
+            </div>
+        </div>
+    </div>
+</div>
 
 <div class="card shadow-sm">
     <div class="card-body">
@@ -45,9 +122,16 @@
                                 </td>
                                 <td>@user.Email</td>
                                 <td>
-                                    @foreach (var rol in user.Roles)
+                                    @if (user.Roles != null && user.Roles.Any())
                                     {
-                                        <span class="badge bg-light text-dark me-1">@rol</span>
+                                        @foreach (var rol in user.Roles)
+                                        {
+                                            <span class="badge bg-light text-dark me-1">@rol</span>
+                                        }
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-secondary">Sin rol</span>
                                     }
                                 </td>
                                 <td>@user.FechaRegistro.ToLocalTime().ToString("dd/MM/yyyy HH:mm")</td>
@@ -66,7 +150,7 @@
         {
             <div class="text-center text-muted py-5">
                 <i class="fas fa-user-lock fa-3x mb-3"></i>
-                <p class="mb-0">Aún no hay usuarios internos registrados.</p>
+                <p class="mb-0">No se encontraron usuarios con los filtros actuales.</p>
             </div>
         }
     </div>

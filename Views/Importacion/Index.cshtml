@@ -1,0 +1,152 @@
+@{
+    ViewData["Title"] = "Importación de Datos";
+}
+
+<div class="container-fluid py-4">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-1">
+                <i class="bi bi-cloud-upload me-2"></i>Importación de Datos
+            </h1>
+            <p class="text-muted mb-0">Importar alumnos y libros desde archivos CSV</p>
+        </div>
+    </div>
+
+    @if (TempData["SuccessMessage"] != null)
+    {
+        <div class="alert alert-success alert-dismissible fade show" role="alert">
+            <i class="bi bi-check-circle me-2"></i>@TempData["SuccessMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    @if (TempData["ErrorMessage"] != null)
+    {
+        <div class="alert alert-danger alert-dismissible fade show" role="alert">
+            <i class="bi bi-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        </div>
+    }
+
+    <div class="row g-4">
+        <!-- Importar Alumnos -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-people me-2"></i>Importar Alumnos
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Importa la lista de alumnos desde un archivo CSV con el formato de la escuela.
+                    </p>
+
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading"><i class="bi bi-info-circle me-1"></i>Formato esperado</h6>
+                        <small>
+                            Columnas separadas por punto y coma (;):<br>
+                            <code>Desc Grado;Run;Dígito Ver.;Genero;Nombres;Apellido Paterno;Apellido Materno</code>
+                        </small>
+                    </div>
+
+                    <form asp-action="ValidarAlumnos" method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="archivoAlumnos" class="form-label">Archivo CSV de alumnos</label>
+                            <input type="file" class="form-control" id="archivoAlumnos" name="archivo" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="bi bi-search me-1"></i>Validar archivo
+                        </button>
+                    </form>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <small class="text-muted">
+                        <i class="bi bi-lightbulb me-1"></i>
+                        El sistema detectará alumnos nuevos y existentes (por RUT).
+                    </small>
+                </div>
+            </div>
+        </div>
+
+        <!-- Importar Libros -->
+        <div class="col-lg-6">
+            <div class="card h-100">
+                <div class="card-header bg-success text-white">
+                    <h5 class="card-title mb-0">
+                        <i class="bi bi-book me-2"></i>Importar Libros
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">
+                        Importa el inventario de libros desde un archivo CSV con el formato del inventario.
+                    </p>
+
+                    <div class="alert alert-info">
+                        <h6 class="alert-heading"><i class="bi bi-info-circle me-1"></i>Formato esperado</h6>
+                        <small>
+                            Columnas separadas por punto y coma (;):<br>
+                            <code>R;Nombre;Autor;Editorial;ISBN;Cant.;Estado;Observación</code>
+                        </small>
+                    </div>
+
+                    <form asp-action="ValidarLibros" method="post" enctype="multipart/form-data">
+                        <div class="mb-3">
+                            <label for="archivoLibros" class="form-label">Archivo CSV de libros</label>
+                            <input type="file" class="form-control" id="archivoLibros" name="archivo" accept=".csv" required>
+                        </div>
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-search me-1"></i>Validar archivo
+                        </button>
+                    </form>
+                </div>
+                <div class="card-footer bg-transparent">
+                    <small class="text-muted">
+                        <i class="bi bi-lightbulb me-1"></i>
+                        Los estados se mapean automáticamente (Bueno → Disponible, Hojas sueltas → Deteriorado, etc.)
+                    </small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instrucciones -->
+    <div class="card mt-4">
+        <div class="card-header">
+            <h5 class="card-title mb-0">
+                <i class="bi bi-question-circle me-2"></i>Instrucciones de uso
+            </h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <h6><i class="bi bi-1-circle me-2 text-primary"></i>Preparar el archivo</h6>
+                    <p class="text-muted small">
+                        Exporta los datos desde Excel como CSV (delimitado por punto y coma).
+                        Asegúrate de que la primera fila contenga los encabezados.
+                    </p>
+
+                    <h6><i class="bi bi-2-circle me-2 text-primary"></i>Validar</h6>
+                    <p class="text-muted small">
+                        Sube el archivo y presiona "Validar". El sistema analizará los datos
+                        y mostrará un resumen de los cambios a realizar.
+                    </p>
+                </div>
+                <div class="col-md-6">
+                    <h6><i class="bi bi-3-circle me-2 text-primary"></i>Revisar</h6>
+                    <p class="text-muted small">
+                        Revisa el resumen de cambios: nuevos registros, actualizaciones y errores.
+                        Si hay errores, corrige el CSV y vuelve a validar.
+                    </p>
+
+                    <h6><i class="bi bi-4-circle me-2 text-primary"></i>Confirmar</h6>
+                    <p class="text-muted small">
+                        Si todo está correcto, confirma la importación para aplicar los cambios
+                        a la base de datos.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+

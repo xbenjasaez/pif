@@ -36,6 +36,12 @@
     --shadow-color: rgba(0, 0, 0, 0.35);
 }
 
+html, body {
+    width: 100%;
+    max-width: 100%;
+    overflow-x: hidden;
+}
+
 body {
     font-family: 'Nunito', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Helvetica Neue', Arial, sans-serif;
     background-color: var(--body-bg);
@@ -621,6 +627,38 @@ textarea::selection {
     color: #bae6fd;
 }
 
+/* Dark mode - Table cells text */
+[data-theme="dark"] .table tbody td {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .table tbody td strong {
+    color: var(--text-color) !important;
+    font-weight: 600;
+}
+
+[data-theme="dark"] .table tbody td span:not(.badge):not(.btn):not(.text-primary):not(.text-success):not(.text-danger):not(.text-warning):not(.text-info) {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .table tbody td small {
+    color: var(--muted-text) !important;
+}
+
+[data-theme="dark"] .table tbody td i.text-primary {
+    color: var(--primary-color) !important;
+}
+
+[data-theme="dark"] .table tbody tr td,
+[data-theme="dark"] .table tbody tr td *:not(.badge):not(.btn):not(.text-primary):not(.text-success):not(.text-danger):not(.text-warning):not(.text-info):not(.text-muted) {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .table tbody tr:hover td,
+[data-theme="dark"] .table tbody tr:hover td *:not(.badge):not(.btn):not(.text-primary):not(.text-success):not(.text-danger):not(.text-warning):not(.text-info):not(.text-muted) {
+    color: var(--text-color) !important;
+}
+
 /* Dark mode - Modals */
 [data-theme="dark"] .modal-content {
     background-color: var(--surface-bg);
@@ -908,6 +946,187 @@ textarea::selection {
 
 [data-theme="dark"] .offcanvas-header {
     border-bottom-color: var(--border-color);
+}
+
+/* Dark mode - Badges con bg-light text-dark */
+[data-theme="dark"] .badge.bg-light,
+[data-theme="dark"] .badge.bg-light.text-dark,
+[data-theme="dark"] span.badge.bg-light.text-dark {
+    background-color: var(--surface-alt) !important;
+    color: var(--text-color) !important;
+    border: 1px solid var(--border-color);
+}
+
+/* Dark mode - Badges con bg-warning text-dark */
+[data-theme="dark"] .badge.bg-warning.text-dark {
+    background-color: var(--warning-color) !important;
+    color: #1f2937 !important;
+}
+
+/* Dark mode - Input group text con bg-white */
+[data-theme="dark"] .input-group-text.bg-white {
+    background-color: var(--surface-alt) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+/* Dark mode - Modales */
+[data-theme="dark"] .modal-content {
+    background-color: var(--surface-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .modal-header {
+    border-bottom-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .modal-footer {
+    border-top-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .modal-title {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .btn-close {
+    filter: invert(1) grayscale(100%) brightness(200%);
+}
+
+/* Dark mode - Progress bars */
+[data-theme="dark"] .progress {
+    background-color: var(--surface-alt) !important;
+}
+
+[data-theme="dark"] .progress-bar {
+    color: var(--text-color) !important;
+}
+
+/* Dark mode - Cards con border-primary, border-success, etc */
+[data-theme="dark"] .card.border-primary {
+    border-color: var(--primary-color) !important;
+}
+
+[data-theme="dark"] .card.border-success {
+    border-color: var(--success-color) !important;
+}
+
+[data-theme="dark"] .card.border-info {
+    border-color: var(--info-color) !important;
+}
+
+[data-theme="dark"] .card.border-warning {
+    border-color: var(--warning-color) !important;
+}
+
+[data-theme="dark"] .card.border-danger {
+    border-color: var(--danger-color) !important;
+}
+
+/* Dark mode - Text-dark en varios contextos */
+[data-theme="dark"] .text-dark:not(.badge):not(.btn) {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] h1.text-dark,
+[data-theme="dark"] h2.text-dark,
+[data-theme="dark"] h3.text-dark,
+[data-theme="dark"] h4.text-dark,
+[data-theme="dark"] h5.text-dark,
+[data-theme="dark"] h6.text-dark {
+    color: var(--text-color) !important;
+}
+
+/* Dark mode - Font weight bold con text-dark */
+[data-theme="dark"] .font-weight-bold.text-dark,
+[data-theme="dark"] .fw-bold.text-dark {
+    color: var(--text-color) !important;
+}
+
+/* Dark mode - Code tags mejorados */
+[data-theme="dark"] code:not(pre code) {
+    color: #60a5fa !important;
+    background-color: rgba(96, 165, 250, 0.15) !important;
+    padding: 0.125rem 0.25rem;
+    border-radius: 0.25rem;
+}
+
+/* Dark mode - List group items */
+[data-theme="dark"] .list-group-item {
+    background-color: var(--surface-bg) !important;
+    color: var(--text-color) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .list-group-item:hover {
+    background-color: var(--surface-alt) !important;
+}
+
+/* Dark mode - Dropdown menus */
+[data-theme="dark"] .dropdown-menu {
+    background-color: var(--surface-bg) !important;
+    border-color: var(--border-color) !important;
+}
+
+[data-theme="dark"] .dropdown-item {
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .dropdown-item:hover,
+[data-theme="dark"] .dropdown-item:focus {
+    background-color: var(--surface-alt) !important;
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .dropdown-divider {
+    border-color: var(--border-color) !important;
+}
+
+/* Dark mode - Tooltips */
+[data-theme="dark"] .tooltip .tooltip-inner {
+    background-color: var(--surface-alt) !important;
+    color: var(--text-color) !important;
+}
+
+[data-theme="dark"] .tooltip .tooltip-arrow::before {
+    border-top-color: var(--surface-alt) !important;
+}
+
+/* Dark mode - Spinner */
+[data-theme="dark"] .spinner-border {
+    border-color: currentColor;
+    border-right-color: transparent;
+}
+
+/* Dark mode - Progress bars con bg-white */
+[data-theme="dark"] .progress-bar.bg-white {
+    background-color: var(--text-color) !important;
+    color: var(--surface-bg) !important;
+}
+
+/* Dark mode - Auth cards */
+[data-theme="dark"] .auth-card.bg-white {
+    background-color: var(--surface-bg) !important;
+    color: var(--text-color) !important;
+}
+
+/* Dark mode - Pre tags con estilos inline */
+[data-theme="dark"] pre[style*="background"] {
+    background-color: var(--surface-alt) !important;
+    color: var(--text-color) !important;
+}
+
+/* Dark mode - Card headers con bg-white */
+[data-theme="dark"] .card-header.bg-white {
+    background-color: var(--surface-bg) !important;
+    color: var(--text-color) !important;
+    border-bottom-color: var(--border-color) !important;
+}
+
+/* Dark mode - Metric cards con bg-white */
+[data-theme="dark"] .metric-card.bg-white {
+    background-color: var(--surface-bg) !important;
+    color: var(--text-color) !important;
 }
 
 /* Print styles */

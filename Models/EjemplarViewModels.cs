@@ -18,6 +18,12 @@ namespace BibliotecaVirtualWeb.Models
         /// Indica si se debe mostrar el mensaje de "realiza una búsqueda" en lugar de la tabla.
         /// </summary>
         public bool MostrarMensajeBusqueda { get; set; }
+
+        // Paginación
+        public int PageNumber { get; set; } = 1;
+        public int PageSize { get; set; } = 20;
+        public int TotalItems { get; set; }
+        public int TotalPages { get; set; }
     }
 
     public class EjemplaresResumenViewModel
@@ -35,6 +41,22 @@ namespace BibliotecaVirtualWeb.Models
         public string TituloDocumento { get; set; } = "Códigos de barras de ejemplares";
         public DateTime GeneradoEl { get; set; } = DateTime.Now;
         public bool AutoPrint { get; set; }
+    }
+
+    public class EjemplarEstadisticasViewModel
+    {
+        public int TotalPrestamos { get; set; }
+        public int PrestamosActivos { get; set; }
+        public int DevolucionesATiempo { get; set; }
+        public int DevolucionesTardias { get; set; }
+        public int UsuariosUnicos { get; set; }
+        public int PromedioDiasPrestamo { get; set; }
+        public DateTime? UltimoPrestamo { get; set; }
+        public DateTime? UltimaDevolucion { get; set; }
+        
+        public double PorcentajeATiempo => TotalPrestamos > 0 && (DevolucionesATiempo + DevolucionesTardias) > 0
+            ? Math.Round((double)DevolucionesATiempo / (DevolucionesATiempo + DevolucionesTardias) * 100, 1)
+            : 100;
     }
 }
 

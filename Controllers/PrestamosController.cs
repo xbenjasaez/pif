@@ -14,18 +14,22 @@ namespace BibliotecaVirtualWeb.Controllers
         private readonly ApplicationDbContext _context;
         private readonly IAuditoriaService _auditoria;
         private readonly IAlertaSistemaService _alertas;
+        private readonly IGamificationService _gamification;
 
-        public PrestamosController(ApplicationDbContext context, IAuditoriaService auditoria, IAlertaSistemaService alertas)
+        public PrestamosController(ApplicationDbContext context, IAuditoriaService auditoria, IAlertaSistemaService alertas, IGamificationService gamification)
         {
             _context = context;
             _auditoria = auditoria;
             _alertas = alertas;
+            _gamification = gamification;
         }
 
         // GET: Prestamos
         [Authorize(Roles = "Admin,Bibliotecario")]
-        public async Task<IActionResult> Index(string? estado, string? searchString)
+        public async Task<IActionResult> Index(string? estado, string? searchString, int pagina = 1)
         {
+            const int elementosPorPagina = 20;
+            
             var prestamos = _context.Prestamos
                 .Include(p => p.Ejemplar)
                     .ThenInclude(e => e.Libro)
@@ -66,16 +70,29 @@ namespace BibliotecaVirtualWeb.Controllers
                 }
             }
 
+            // Contar total para paginación
+            var totalElementos = await prestamos.CountAsync();
+            var totalPaginas = (int)Math.Ceiling(totalElementos / (double)elementosPorPagina);
+            
+            // Asegurar que la página sea válida
+            if (pagina < 1) pagina = 1;
+            if (pagina > totalPaginas && totalPaginas > 0) pagina = totalPaginas;
+
+            // Obtener solo los elementos de la página actual
             var lista = await prestamos
                 .OrderByDescending(p => p.FechaPrestamo)
+                .Skip((pagina - 1) * elementosPorPagina)
+                .Take(elementosPorPagina)
                 .ToListAsync();
 
+            // Resumen global (sin paginación)
+            var todosLosPrestamos = await _context.Prestamos.ToListAsync();
             var resumen = new PrestamosResumenViewModel
             {
-                Total = lista.Count,
-                Activos = lista.Count(p => p.Estado == "Activo"),
-                Devueltos = lista.Count(p => p.Estado == "Devuelto"),
-                Vencidos = lista.Count(p => p.Estado == "Activo" && p.FechaVencimiento < DateTime.Now)
+                Total = todosLosPrestamos.Count,
+                Activos = todosLosPrestamos.Count(p => p.Estado == "Activo"),
+                Devueltos = todosLosPrestamos.Count(p => p.Estado == "Devuelto"),
+                Vencidos = todosLosPrestamos.Count(p => p.Estado == "Activo" && p.FechaVencimiento < DateTime.Now)
             };
 
             var viewModel = new PrestamosIndexViewModel
@@ -83,7 +100,11 @@ namespace BibliotecaVirtualWeb.Controllers
                 Prestamos = lista,
                 EstadoSeleccionado = estado,
                 SearchString = searchString,
-                Resumen = resumen
+                Resumen = resumen,
+                PaginaActual = pagina,
+                TotalPaginas = totalPaginas,
+                ElementosPorPagina = elementosPorPagina,
+                TotalElementos = totalElementos
             };
 
             return View(viewModel);
@@ -111,11 +132,11 @@ namespace BibliotecaVirtualWeb.Controllers
             return View(prestamo);
         }
 
-        // GET: Prestamos/Create
+        // GET: Prestamos/Create - Redirige a PrestamoRapido
         [Authorize(Roles = "Admin,Bibliotecario")]
-        public async Task<IActionResult> Create()
+        public IActionResult Create()
         {
-            return View();
+            return RedirectToAction(nameof(PrestamoRapido));
         }
 
         // GET: Prestamos/DevolucionRapida
@@ -181,7 +202,9 @@ namespace BibliotecaVirtualWeb.Controllers
                 return Json(new { success = false, message = "No encontramos ningún ejemplar con ese código de barras." });
             }
 
-            if (ejemplar.Estado != "Disponible")
+            // Estados que permiten préstamo: Disponible y Deteriorado (con advertencia)
+            var estadosPrestables = new[] { "Disponible", "Deteriorado" };
+            if (!estadosPrestables.Contains(ejemplar.Estado))
             {
                 var estadosNoPrestables = new[] { "Dado de baja", "Extraviado" };
                 var mensajeError = estadosNoPrestables.Contains(ejemplar.Estado)
@@ -265,7 +288,7 @@ namespace BibliotecaVirtualWeb.Controllers
                         codigoBarras = ejemplar.CodigoBarras,
                         usuario = usuario.Nombre,
                         rut = usuario.RUT,
-                        curso = usuario.Curso,
+                        curso = usuario.CursoConLetra,
                         fechaPrestamo = prestamo.FechaPrestamo,
                         fechaVencimiento = prestamo.FechaVencimiento
                     }
@@ -300,12 +323,17 @@ namespace BibliotecaVirtualWeb.Controllers
                 return Json(new { success = false, message = "Ejemplar no encontrado. Verifica el código de barras." });
             }
 
-            if (ejemplar.Estado != "Disponible")
+            // Estados que NO permiten préstamo
+            var estadosNoPrestables = new[] { "Dado de baja", "Extraviado", "Prestado", "Reservado", "En Reparacion" };
+            
+            // Estados que permiten préstamo pero con advertencia
+            var estadosConAdvertencia = new[] { "Deteriorado" };
+
+            if (estadosNoPrestables.Contains(ejemplar.Estado))
             {
-                var estadosNoPrestables = new[] { "Dado de baja", "Extraviado" };
-                var mensaje = estadosNoPrestables.Contains(ejemplar.Estado)
-                    ? $"Este ejemplar está marcado como '{ejemplar.Estado}' y no se puede prestar."
-                    : $"El ejemplar no está disponible. Estado actual: {ejemplar.Estado}.";
+                var mensaje = ejemplar.Estado == "Prestado"
+                    ? $"El ejemplar ya está prestado a: {ejemplar.PrestadoA ?? "Usuario desconocido"}."
+                    : $"Este ejemplar está marcado como '{ejemplar.Estado}' y no se puede prestar.";
 
                 return Json(new { 
                     success = false, 
@@ -314,6 +342,7 @@ namespace BibliotecaVirtualWeb.Controllers
                         id = ejemplar.Id, 
                         codigoBarras = ejemplar.CodigoBarras,
                         estado = ejemplar.Estado,
+                        notas = ejemplar.Notas,
                         libro = new {
                             id = ejemplar.Libro?.Id ?? ejemplar.LibroId,
                             titulo = ejemplar.Libro?.Titulo ?? "Sin título",
@@ -323,12 +352,28 @@ namespace BibliotecaVirtualWeb.Controllers
                 });
             }
 
+            // Determinar si hay advertencia por estado deteriorado
+            bool tieneAdvertencia = estadosConAdvertencia.Contains(ejemplar.Estado);
+            string? mensajeAdvertencia = null;
+            
+            if (tieneAdvertencia)
+            {
+                var observacion = !string.IsNullOrWhiteSpace(ejemplar.Notas) 
+                    ? ejemplar.Notas 
+                    : "Sin observaciones adicionales";
+                mensajeAdvertencia = $"⚠️ EJEMPLAR DETERIORADO: {observacion}";
+            }
+
             return Json(new { 
                 success = true,
+                advertencia = tieneAdvertencia,
+                mensajeAdvertencia = mensajeAdvertencia,
                 ejemplar = new { 
                     id = ejemplar.Id, 
                     codigoBarras = ejemplar.CodigoBarras,
                     estado = ejemplar.Estado,
+                    notas = ejemplar.Notas,
+                    ubicacion = ejemplar.Ubicacion,
                     libro = new {
                         id = ejemplar.Libro?.Id ?? ejemplar.LibroId,
                         titulo = ejemplar.Libro?.Titulo ?? "Sin título",
@@ -382,7 +427,9 @@ namespace BibliotecaVirtualWeb.Controllers
                 return View(new Prestamo { EjemplarId = EjemplarId, UsuarioId = UsuarioId });
             }
 
-            if (ejemplar.Estado != "Disponible")
+            // Estados que permiten préstamo: Disponible y Deteriorado (con advertencia)
+            var estadosPrestables = new[] { "Disponible", "Deteriorado" };
+            if (!estadosPrestables.Contains(ejemplar.Estado))
             {
                 var estadosNoPrestables = new[] { "Dado de baja", "Extraviado" };
                 var mensajeError = estadosNoPrestables.Contains(ejemplar.Estado)
@@ -452,7 +499,9 @@ namespace BibliotecaVirtualWeb.Controllers
                     return View(new Prestamo { EjemplarId = EjemplarId, UsuarioId = UsuarioId });
                 }
                 
-                if (ejemplarVerificacion.Estado != "Disponible")
+                // Estados que permiten préstamo: Disponible y Deteriorado
+                var estadosPrestablesVerif = new[] { "Disponible", "Deteriorado" };
+                if (!estadosPrestablesVerif.Contains(ejemplarVerificacion.Estado))
                 {
                     // Verificar si realmente hay un préstamo activo o si es inconsistencia
                     var prestamoActivoReal = await _context.Prestamos
@@ -562,10 +611,20 @@ namespace BibliotecaVirtualWeb.Controllers
             {
                 await _context.SaveChangesAsync();
                 var tituloLibro = ejemplar.Libro?.Titulo ?? prestamo.Libro?.Titulo ?? "Libro";
-                TempData["SuccessMessage"] = $"Libro '{tituloLibro}' devuelto correctamente. Ahora está disponible.";
+                
+                // Verificar gamificación
+                var nuevosLogros = await _gamification.VerificarLogrosAsync(usuario.Id);
+                var mensajeLogros = "";
+                if (nuevosLogros.Any())
+                {
+                    var nombresLogros = string.Join(", ", nuevosLogros.Select(l => l.Nombre));
+                    mensajeLogros = $" ¡El usuario ha desbloqueado logros: {nombresLogros}!";
+                }
+
+                TempData["SuccessMessage"] = $"Libro '{tituloLibro}' devuelto correctamente. Ahora está disponible.{mensajeLogros}";
                 await _auditoria.RegistrarAsync(
                     "Devolución manual",
-                    $"Se devolvió '{tituloLibro}' del usuario {usuario.NombreCompleto} ({usuario.RUT})",
+                    $"Se devolvió '{tituloLibro}' del usuario {usuario.NombreCompleto} ({usuario.RUT}){mensajeLogros}",
                     User);
             }
             catch (Exception ex)
@@ -632,13 +691,39 @@ namespace BibliotecaVirtualWeb.Controllers
 
             PrepararEntidadesParaDevolucion(prestamo, ejemplar, usuario);
 
+            // Si el usuario indicó que el libro se devuelve dañado, marcar el ejemplar como "Deteriorado"
+            if (request.MarcarDaniado)
+            {
+                ejemplar.Estado = "Deteriorado";
+
+                var textoBase = $"Marcado como deteriorado al devolver el {DateTime.Now:dd/MM/yyyy HH:mm}.";
+                if (!string.IsNullOrWhiteSpace(request.NotasDano))
+                {
+                    textoBase += $" Detalle: {request.NotasDano.Trim()}";
+                }
+
+                if (string.IsNullOrWhiteSpace(ejemplar.Notas))
+                {
+                    ejemplar.Notas = textoBase;
+                }
+                else
+                {
+                    ejemplar.Notas = $"{ejemplar.Notas}\n{textoBase}";
+                }
+
+                _context.Entry(ejemplar).State = EntityState.Modified;
+            }
+
             try
             {
                 await _context.SaveChangesAsync();
 
+                var tituloLibro = ejemplar.Libro?.Titulo ?? "Sin título";
+
                 await _auditoria.RegistrarAsync(
                     "Devolución rápida",
-                    $"Se devolvió '{ejemplar.Libro?.Titulo ?? "Sin título"}' del usuario {usuario.NombreCompleto} ({usuario.RUT})",
+                    $"Se devolvió '{tituloLibro}' del usuario {usuario.NombreCompleto} ({usuario.RUT})" +
+                    (request.MarcarDaniado ? " (marcado como deteriorado al devolver)." : string.Empty),
                     User);
 
                 var ahora = DateTime.Now;
@@ -648,10 +733,24 @@ namespace BibliotecaVirtualWeb.Controllers
                     diasRetraso = (int)Math.Ceiling((ahora - prestamo.FechaVencimiento).TotalDays);
                 }
 
+                // Verificar gamificación
+                var nuevosLogros = await _gamification.VerificarLogrosAsync(usuario.Id);
+                var mensajeLogros = "";
+                var logrosObtenidos = new List<object>();
+
+                if (nuevosLogros.Any())
+                {
+                    var nombresLogros = string.Join(", ", nuevosLogros.Select(l => l.Nombre));
+                    mensajeLogros = $" ¡LOGRO DESBLOQUEADO: {nombresLogros}!";
+                    logrosObtenidos = nuevosLogros.Select(l => new { nombre = l.Nombre, icono = l.Icono, color = l.Color }).Cast<object>().ToList();
+                }
+
                 return Json(new
                 {
                     success = true,
-                    message = $"Libro '{ejemplar.Libro?.Titulo ?? "Sin título"}' devuelto correctamente.",
+                    message = request.MarcarDaniado
+                        ? $"Libro '{tituloLibro}' devuelto y marcado como deteriorado.{mensajeLogros}"
+                        : $"Libro '{tituloLibro}' devuelto correctamente.{mensajeLogros}",
                     data = new
                     {
                         prestamoId = prestamo.Id,
@@ -660,7 +759,7 @@ namespace BibliotecaVirtualWeb.Controllers
                             id = usuario.Id,
                             nombre = usuario.NombreCompleto,
                             rut = usuario.RUT,
-                            curso = usuario.Curso
+                            curso = usuario.CursoConLetra
                         },
                         libro = new
                         {
@@ -672,7 +771,8 @@ namespace BibliotecaVirtualWeb.Controllers
                         fechaPrestamo = prestamo.FechaPrestamo,
                         fechaVencimiento = prestamo.FechaVencimiento,
                         fechaDevolucion = prestamo.FechaDevolucion,
-                        diasRetraso
+                        diasRetraso,
+                        logros = logrosObtenidos
                     }
                 });
             }
@@ -713,23 +813,27 @@ namespace BibliotecaVirtualWeb.Controllers
                 .OrderBy(u => u.Apellido)
                 .ThenBy(u => u.Nombre)
                 .Take(10)
+                .AsNoTracking()
+                .ToListAsync();
+
+            var usuariosDto = usuarios
                 .Select(u => new
                 {
                     id = u.Id,
                     nombreCompleto = $"{u.Nombre} {u.Apellido}".Trim(),
                     rut = u.RUT,
-                    curso = u.Curso,
+                    curso = string.IsNullOrWhiteSpace(u.CursoConLetra) ? string.Empty : u.CursoConLetra,
                     telefono = u.Telefono,
                     email = u.Email
                 })
-                .ToListAsync();
+                .ToList();
 
             if (!string.IsNullOrWhiteSpace(termino))
             {
-                return Json(new { success = true, usuarios });
+                return Json(new { success = true, usuarios = usuariosDto });
             }
 
-            var resultados = usuarios
+            var resultados = usuariosDto
                 .Select(u => new
                 {
                     u.id,
@@ -785,7 +889,7 @@ namespace BibliotecaVirtualWeb.Controllers
                     id = usuario.Id,
                     nombreCompleto = $"{usuario.Nombre} {usuario.Apellido}".Trim(),
                     rut = usuario.RUT,
-                    curso = usuario.Curso
+                    curso = usuario.CursoConLetra
                 }
             });
         }
@@ -922,6 +1026,16 @@ namespace BibliotecaVirtualWeb.Controllers
         public class DevolucionPorCodigoRequest
         {
             public string CodigoBarras { get; set; } = string.Empty;
+
+            /// <summary>
+            /// Indica si al devolver el libro se debe marcar el ejemplar como dañado/deteriorado.
+            /// </summary>
+            public bool MarcarDaniado { get; set; }
+
+            /// <summary>
+            /// Observación opcional sobre el daño reportado.
+            /// </summary>
+            public string? NotasDano { get; set; }
         }
 
         public class PrestamoRapidoRequest

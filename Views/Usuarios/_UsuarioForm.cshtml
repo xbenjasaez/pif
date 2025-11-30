@@ -1,7 +1,18 @@
 @model BibliotecaVirtualWeb.Models.Usuario
 @using Microsoft.AspNetCore.Mvc.Rendering
+@using System.Collections.Generic
 @{
     var cursos = ViewBag.Cursos as IEnumerable<SelectListItem> ?? Enumerable.Empty<SelectListItem>();
+    var letras = new List<SelectListItem>();
+    foreach (var letra in new[] { "A", "B", "C", "D", "E", "F" })
+    {
+        letras.Add(new SelectListItem
+        {
+            Value = letra,
+            Text = letra,
+            Selected = string.Equals(Model?.LetraCurso, letra, StringComparison.OrdinalIgnoreCase)
+        });
+    }
 }
 
 <div class="row">
@@ -22,7 +33,7 @@
 </div>
 
 <div class="row">
-    <div class="col-md-6">
+    <div class="col-md-4">
         <div class="mb-3">
             <label asp-for="RUT" class="form-label"></label>
             <input asp-for="RUT"
@@ -35,7 +46,18 @@
             <div class="form-text">Formato: 12.345.678-9</div>
         </div>
     </div>
-    <div class="col-md-6">
+    <div class="col-md-4">
+        <div class="mb-3">
+            <label asp-for="Genero" class="form-label"></label>
+            <select asp-for="Genero" class="form-select">
+                <option value="">Seleccione</option>
+                <option value="F">Femenino</option>
+                <option value="M">Masculino</option>
+            </select>
+            <span asp-validation-for="Genero" class="text-danger"></span>
+        </div>
+    </div>
+    <div class="col-md-4">
         <div class="mb-3">
             <label asp-for="Estado" class="form-label"></label>
             <select asp-for="Estado" class="form-select">
@@ -58,13 +80,31 @@
     <div class="col-md-6">
         <div class="mb-3">
             <label asp-for="Telefono" class="form-label"></label>
-            <input asp-for="Telefono" class="form-control" placeholder="+56 9 1234 5678" />
+            <input asp-for="Telefono"
+                   class="form-control"
+                   placeholder="56912345678"
+                   inputmode="numeric"
+                   pattern="[0-9]*"
+                   oninput="this.value = this.value.replace(/[^0-9]/g, '');" />
             <span asp-validation-for="Telefono" class="text-danger"></span>
         </div>
     </div>
 </div>
 
 <div class="row">
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="TipoUsuario" class="form-label"></label>
+            <select asp-for="TipoUsuario" class="form-select" id="tipoUsuario">
+                <option value="Alumno">Alumno</option>
+                <option value="Profesor">Profesor</option>
+            </select>
+            <span asp-validation-for="TipoUsuario" class="text-danger"></span>
+        </div>
+    </div>
+</div>
+
+<div class="row" id="camposCurso">
     <div class="col-md-6">
         <div class="mb-3">
             <label asp-for="Curso" class="form-label"></label>
@@ -74,7 +114,52 @@
             <span asp-validation-for="Curso" class="text-danger"></span>
         </div>
     </div>
+    <div class="col-md-6">
+        <div class="mb-3">
+            <label asp-for="LetraCurso" class="form-label"></label>
+            <select asp-for="LetraCurso" class="form-select" asp-items="letras">
+                <option value="">Seleccione una letra (A-F)</option>
+            </select>
+            <span asp-validation-for="LetraCurso" class="text-danger"></span>
+        </div>
+    </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const tipoUsuario = document.getElementById("tipoUsuario");
+        const camposCurso = document.getElementById("camposCurso");
+        const cursoSelect = document.querySelector('select[name="Curso"]');
+        const letraCursoSelect = document.querySelector('select[name="LetraCurso"]');
+        
+        function toggleCamposCurso() {
+            if (tipoUsuario.value === "Profesor") {
+                camposCurso.style.display = "none";
+                // Limpiar valores y hacer que no sean requeridos
+                if (cursoSelect) {
+                    cursoSelect.value = "";
+                    cursoSelect.removeAttribute("required");
+                }
+                if (letraCursoSelect) {
+                    letraCursoSelect.value = "";
+                    letraCursoSelect.removeAttribute("required");
+                }
+            } else {
+                camposCurso.style.display = "flex";
+                // Restaurar requeridos para alumnos
+                if (cursoSelect) {
+                    cursoSelect.setAttribute("required", "required");
+                }
+                if (letraCursoSelect) {
+                    letraCursoSelect.setAttribute("required", "required");
+                }
+            }
+        }
+        
+        tipoUsuario.addEventListener("change", toggleCamposCurso);
+        toggleCamposCurso(); // Ejecutar al cargar
+    });
+</script>
 
 <div class="mb-3">
     <label asp-for="Notas" class="form-label"></label>

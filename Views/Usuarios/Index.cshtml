@@ -16,7 +16,11 @@
         return idx >= 0 ? idx : cursosOrden.Count;
     }
 
-    var grupos = Model
+    // Separar profesores y alumnos
+    var profesores = Model.Where(u => u.TipoUsuario == "Profesor").OrderBy(u => u.Apellido).ThenBy(u => u.Nombre).ToList();
+    var alumnos = Model.Where(u => u.TipoUsuario == "Alumno" || string.IsNullOrWhiteSpace(u.TipoUsuario)).ToList();
+
+    var gruposAlumnos = alumnos
         .GroupBy(u => string.IsNullOrWhiteSpace(u.Curso) ? "Sin curso" : u.Curso)
         .OrderBy(g => CursoOrden(g.Key))
         .ThenBy(g => g.Key)
@@ -46,12 +50,41 @@
 @section Scripts {
     <script>
         document.addEventListener("DOMContentLoaded", function () {
+            // Selección por curso (alumnos)
             document.querySelectorAll(".seleccionar-curso").forEach(master => {
                 master.addEventListener("change", function () {
                     const curso = this.dataset.curso;
                     document.querySelectorAll(`.seleccionar-credencial[data-curso='${curso}']`)
                         .forEach(chk => chk.checked = this.checked);
                 });
+            });
+
+            // Selección de todos los profesores
+            const selectAllProfesores = document.getElementById("select-all-profesores");
+            if (selectAllProfesores) {
+                selectAllProfesores.addEventListener("change", function () {
+                    document.querySelectorAll(".seleccionar-credencial-profesor")
+                        .forEach(chk => chk.checked = this.checked);
+                });
+            }
+
+            // Cambiar ícono del chevron al expandir/colapsar
+            document.querySelectorAll('[data-bs-toggle="collapse"]').forEach(button => {
+                const targetId = button.getAttribute('data-bs-target');
+                const target = document.querySelector(targetId);
+                if (target) {
+                    const icon = button.querySelector('.fa-chevron-down, .fa-chevron-up');
+                    if (icon) {
+                        target.addEventListener('shown.bs.collapse', function() {
+                            icon.classList.remove('fa-chevron-down');
+                            icon.classList.add('fa-chevron-up');
+                        });
+                        target.addEventListener('hidden.bs.collapse', function() {
+                            icon.classList.remove('fa-chevron-up');
+                            icon.classList.add('fa-chevron-down');
+                        });
+                    }
+                }
             });
         });
     </script>
@@ -71,7 +104,7 @@
                 <input type="text" class="form-control" id="searchString" name="searchString" 
                        value="@ViewBag.SearchString" placeholder="Nombre, apellido, RUT o email...">
             </div>
-            <div class="col-md-4">
+            <div class="col-md-3">
                 <label for="estado" class="form-label">Estado</label>
                 <select class="form-select" id="estado" name="estado">
                     <option value="">Todos los estados</option>
@@ -79,49 +112,165 @@
                     <option value="Inactivo" selected="@(ViewBag.EstadoSeleccionado == "Inactivo")">Inactivo</option>
                 </select>
             </div>
+            <div class="col-md-3">
+                <label for="tipoUsuario" class="form-label">Tipo</label>
+                <select class="form-select" id="tipoUsuario" name="tipoUsuario">
+                    <option value="">Todos los tipos</option>
+                    <option value="Alumno" selected="@(ViewBag.TipoUsuarioSeleccionado == "Alumno")">Alumno</option>
+                    <option value="Profesor" selected="@(ViewBag.TipoUsuarioSeleccionado == "Profesor")">Profesor</option>
+                </select>
+            </div>
             <div class="col-md-2 d-flex align-items-end">
-                <button type="submit" class="btn btn-primary me-2">
+                <button type="submit" class="btn btn-primary me-2 w-100">
                     <i class="fas fa-search me-1"></i>Buscar
                 </button>
-                <a asp-action="Index" class="btn btn-outline-secondary">
-                    <i class="fas fa-times me-1"></i>Limpiar
+            </div>
+            <div class="col-md-12 mt-2">
+                <a asp-action="Index" class="btn btn-outline-secondary btn-sm">
+                    <i class="fas fa-times me-1"></i>Limpiar filtros
                 </a>
             </div>
         </form>
     </div>
 </div>
 
-<!-- Lista de Usuarios -->
+<!-- Lista de Profesores -->
+@if (profesores.Any())
+{
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-info bg-opacity-10 border-info">
+            <h6 class="m-0 font-weight-bold text-info">
+                <i class="fas fa-chalkboard-teacher me-2"></i>Profesores (@profesores.Count())
+            </h6>
+        </div>
+        <div class="card-body">
+            <form asp-action="ImprimirCredenciales" method="post">
+                @Html.AntiForgeryToken()
+                <div class="d-flex justify-content-between align-items-center mb-3">
+                    <div class="form-check">
+                        <input class="form-check-input seleccionar-todos-profesores" type="checkbox" id="select-all-profesores">
+                        <label class="form-check-label" for="select-all-profesores">
+                            Seleccionar todos los profesores
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-id-card me-1"></i>Imprimir seleccionados
+                    </button>
+                </div>
+                <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
+                    @foreach (var profesor in profesores)
+                    {
+                        <div class="col">
+                            <div class="card h-100 border-0 shadow-sm border-info">
+                                <div class="card-body">
+                                    <div class="d-flex justify-content-between align-items-start mb-2">
+                                        <div>
+                                            <h5 class="card-title mb-1">@profesor.NombreCompleto</h5>
+                                            <small class="text-muted">Inscrito: @profesor.FechaRegistro.ToString("dd/MM/yyyy")</small>
+                                        </div>
+                                        <span class="@profesor.EstadoBadgeClass">@profesor.Estado</span>
+                                    </div>
+                                    <p class="mb-1">
+                                        <i class="fas fa-chalkboard-teacher me-2 text-info"></i>
+                                        <strong>Profesor</strong>
+                                    </p>
+                                    <p class="mb-1">
+                                        <i class="fas fa-id-card me-2 text-primary"></i>
+                                        <strong>@profesor.RUT</strong>
+                                    </p>
+                                    <p class="mb-1 text-muted">
+                                        <i class="fas fa-envelope me-2"></i>
+                                        @(string.IsNullOrWhiteSpace(profesor.Email) ? "Sin email" : profesor.Email)
+                                    </p>
+                                    <p class="mb-3 text-muted">
+                                        <i class="fas fa-phone me-2"></i>
+                                        @(string.IsNullOrWhiteSpace(profesor.Telefono) ? "Sin teléfono" : profesor.Telefono)
+                                    </p>
+                                    <div class="d-flex flex-wrap gap-2 mb-3">
+                                        <span class="badge bg-primary">
+                                            Préstamos activos: @profesor.PrestamosActivos
+                                        </span>
+                                        @if (profesor.PrestamosVencidos > 0)
+                                        {
+                                            <span class="badge bg-danger">
+                                                Vencidos: @profesor.PrestamosVencidos
+                                            </span>
+                                        }
+                                    </div>
+                                    <div class="form-check">
+                                        <input class="form-check-input seleccionar-credencial-profesor" type="checkbox" name="seleccionados" value="@profesor.Id" id="cred-prof-@profesor.Id">
+                                        <label class="form-check-label" for="cred-prof-@profesor.Id">
+                                            Incluir en este lote
+                                        </label>
+                                    </div>
+                                </div>
+                                <div class="card-footer bg-transparent border-0 pt-0">
+                                    <div class="btn-group w-100" role="group">
+                                        <a asp-action="Details" asp-route-id="@profesor.Id"
+                                           class="btn btn-outline-info btn-sm" title="Ver detalles">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        <a asp-action="Edit" asp-route-id="@profesor.Id"
+                                           class="btn btn-outline-warning btn-sm" title="Editar">
+                                            <i class="fas fa-edit"></i>
+                                        </a>
+                                        <a asp-action="Credencial" asp-route-id="@profesor.Id" target="_blank"
+                                           class="btn btn-outline-primary btn-sm" title="Imprimir credencial individual">
+                                            <i class="fas fa-id-badge"></i>
+                                        </a>
+                                        <a asp-action="Delete" asp-route-id="@profesor.Id"
+                                           class="btn btn-outline-danger btn-sm" title="Eliminar">
+                                            <i class="fas fa-trash"></i>
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            </form>
+        </div>
+    </div>
+}
+
+<!-- Lista de Alumnos -->
 <div class="card shadow">
     <div class="card-header py-3">
         <h6 class="m-0 font-weight-bold text-primary">
-            <i class="fas fa-layer-group me-2"></i>Alumnos por curso (@Model.Count())
+            <i class="fas fa-layer-group me-2"></i>Alumnos totales (@alumnos.Count())
         </h6>
     </div>
     <div class="card-body">
-        @if (grupos.Any())
+        @if (gruposAlumnos.Any())
         {
-            <div class="accordion" id="cursosAccordion">
-                @for (var i = 0; i < grupos.Count; i++)
+            <div class="row g-3">
+                @for (var i = 0; i < gruposAlumnos.Count; i++)
                 {
-                    var grupo = grupos[i];
+                    var grupo = gruposAlumnos[i];
                     var collapseId = $"curso-{Slugify(grupo.Key)}";
-                    <div class="accordion-item mb-3 border-0">
-                        <h2 class="accordion-header" id="heading-@collapseId">
-                            <button class="accordion-button @(i == 0 ? string.Empty : "collapsed")" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId">
-                                <div class="d-flex flex-column flex-md-row w-100 justify-content-between">
-                                    <span>
-                                        <strong>@grupo.Key</strong>
-                                        <span class="badge bg-primary-subtle text-primary ms-2">@grupo.Count() alumno(s)</span>
-                                    </span>
-                                    <small class="text-muted">
-                                        @(grupo.Key == "Sin curso" ? "Alumnos sin curso asignado" : "Alumnos inscritos en este curso")
-                                    </small>
+                    <div class="col-12">
+                        <div class="card shadow-sm border-primary mb-3">
+                            <div class="card-header bg-primary bg-opacity-10 border-primary">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <div class="d-flex align-items-center gap-3">
+                                        <h5 class="mb-0">
+                                            <i class="fas fa-graduation-cap me-2 text-primary"></i>
+                                            <strong>@grupo.Key</strong>
+                                        </h5>
+                                        <span class="badge bg-primary text-white">@grupo.Count() alumno(s)</span>
+                                    </div>
+                                    <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#@collapseId" aria-expanded="@(i == 0 ? "true" : "false")">
+                                        <i class="fas @(i == 0 ? "fa-chevron-up" : "fa-chevron-down")"></i>
+                                        <span class="d-none d-md-inline ms-1">Ver alumnos</span>
+                                    </button>
                                 </div>
-                            </button>
-                        </h2>
-                        <div id="@collapseId" class="accordion-collapse collapse @(i == 0 ? "show" : string.Empty)" data-bs-parent="#cursosAccordion">
-                            <div class="accordion-body">
+                                <small class="text-muted d-block mt-2">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    @(grupo.Key == "Sin curso" ? "Alumnos sin curso asignado" : "Alumnos inscritos en este curso")
+                                </small>
+                            </div>
+                            <div id="@collapseId" class="collapse @(i == 0 ? "show" : string.Empty)">
+                                <div class="card-body">
                                 <form asp-action="ImprimirCredenciales" method="post">
                                     @Html.AntiForgeryToken()
                                     <div class="d-flex justify-content-between align-items-center mb-3">
@@ -136,7 +285,7 @@
                                         </button>
                                     </div>
                                     <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-3">
-                                        @foreach (var usuario in grupo.OrderBy(u => u.Apellido).ThenBy(u => u.Nombre))
+                                        @foreach (var usuario in grupo.OrderBy(u => u.LetraCurso).ThenBy(u => u.Apellido).ThenBy(u => u.Nombre))
                                         {
                                             <div class="col">
                                                 <div class="card h-100 border-0 shadow-sm">
@@ -148,6 +297,12 @@
                                                             </div>
                                                             <span class="@usuario.EstadoBadgeClass">@usuario.Estado</span>
                                                         </div>
+                                                        <p class="mb-1">
+                                                            <i class="fas fa-chalkboard-teacher me-2 text-primary"></i>
+                                                            @(string.IsNullOrWhiteSpace(usuario.CursoConLetra)
+                                                                ? "Sin curso asignado"
+                                                                : usuario.CursoConLetra)
+                                                        </p>
                                                         <p class="mb-1">
                                                             <i class="fas fa-id-card me-2 text-primary"></i>
                                                             <strong>@usuario.RUT</strong>
@@ -203,6 +358,7 @@
                                         }
                                     </div>
                                 </form>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -213,10 +369,10 @@
         {
             <div class="text-center py-5">
                 <i class="fas fa-users fa-4x text-muted mb-3"></i>
-                <h4 class="text-muted">No se encontraron usuarios</h4>
-                <p class="text-muted">Intenta ajustar los filtros de búsqueda o agrega algunos usuarios al sistema.</p>
+                <h4 class="text-muted">No se encontraron alumnos</h4>
+                <p class="text-muted">Intenta ajustar los filtros de búsqueda o agrega algunos alumnos al sistema.</p>
                 <a asp-action="Create" class="btn btn-primary">
-                    <i class="fas fa-user-plus me-1"></i>Agregar Primer Usuario
+                    <i class="fas fa-user-plus me-1"></i>Agregar Primer Alumno
                 </a>
             </div>
         }

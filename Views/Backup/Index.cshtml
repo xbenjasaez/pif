@@ -1,0 +1,444 @@
+@model List<BibliotecaVirtualWeb.Services.BackupInfo>
+@{
+    ViewData["Title"] = "Respaldos de Base de Datos";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-database me-2"></i>Respaldos de Base de Datos
+    </h1>
+    <div class="d-flex gap-2">
+        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoBackup">
+            <i class="fas fa-plus me-1"></i>Crear Respaldo
+        </button>
+    </div>
+</div>
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["InfoMessage"] != null)
+{
+    <div class="alert alert-info alert-dismissible fade show" role="alert">
+        <i class="fas fa-info-circle me-2"></i>@TempData["InfoMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<!-- Información -->
+<div class="row mb-4">
+    <div class="col-md-4">
+        <div class="card shadow-sm border-primary">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-primary bg-opacity-10 p-3 me-3">
+                        <i class="fas fa-archive fa-2x text-primary"></i>
+                    </div>
+                    <div>
+                        <h4 class="mb-0">@Model.Count</h4>
+                        <small class="text-muted">Respaldos totales</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-success">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-success bg-opacity-10 p-3 me-3">
+                        <i class="fas fa-hdd fa-2x text-success"></i>
+                    </div>
+                    <div>
+                        @{
+                            var totalSize = Model.Sum(b => b.TamañoBytes);
+                            var sizeFormatted = totalSize < 1024 * 1024 
+                                ? $"{totalSize / 1024.0:F1} KB" 
+                                : $"{totalSize / (1024.0 * 1024.0):F1} MB";
+                        }
+                        <h4 class="mb-0">@sizeFormatted</h4>
+                        <small class="text-muted">Espacio utilizado</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card shadow-sm border-info">
+            <div class="card-body">
+                <div class="d-flex align-items-center">
+                    <div class="rounded-circle bg-info bg-opacity-10 p-3 me-3">
+                        <i class="fas fa-clock fa-2x text-info"></i>
+                    </div>
+                    <div>
+                        @if (Model.Any())
+                        {
+                            <h4 class="mb-0">@Model.First().FechaCreacion.ToString("dd/MM")</h4>
+                            <small class="text-muted">Último respaldo</small>
+                        }
+                        else
+                        {
+                            <h4 class="mb-0">-</h4>
+                            <small class="text-muted">Sin respaldos</small>
+                        }
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Lista de backups -->
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-list me-2"></i>Lista de Respaldos</h5>
+        @if (Model.Count > 10)
+        {
+            <form asp-action="Limpiar" method="post" class="d-inline">
+                @Html.AntiForgeryToken()
+                <input type="hidden" name="mantener" value="10" />
+                <button type="submit" class="btn btn-outline-warning btn-sm" 
+                        onclick="return confirm('¿Eliminar los respaldos más antiguos y mantener solo los últimos 10?')">
+                    <i class="fas fa-broom me-1"></i>Limpiar antiguos
+                </button>
+            </form>
+        }
+    </div>
+    <div class="card-body">
+        @if (Model.Any())
+        {
+            <div class="table-responsive">
+                <table class="table table-hover align-middle">
+                    <thead>
+                        <tr>
+                            <th>Archivo</th>
+                            <th>Fecha</th>
+                            <th>Tamaño</th>
+                            <th>Descripción</th>
+                            <th>Estado</th>
+                            <th class="text-center">Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var backup in Model)
+                        {
+                            <tr>
+                                <td>
+                                    <i class="fas fa-file-code me-2 text-primary"></i>
+                                    <strong>@backup.NombreArchivo</strong>
+                                </td>
+                                <td>
+                                    <span title="@backup.FechaCreacion.ToString("dd/MM/yyyy HH:mm:ss")">
+                                        @backup.FechaCreacion.ToString("dd/MM/yyyy HH:mm")
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-light text-dark">@backup.TamañoFormateado</span>
+                                </td>
+                                <td>
+                                    <small class="text-muted">@(backup.Descripcion ?? "-")</small>
+                                </td>
+                                <td>
+                                    @if (backup.ExisteArchivo)
+                                    {
+                                        <span class="badge bg-success">
+                                            <i class="fas fa-check me-1"></i>Disponible
+                                        </span>
+                                    }
+                                    else
+                                    {
+                                        <span class="badge bg-danger">
+                                            <i class="fas fa-times me-1"></i>No encontrado
+                                        </span>
+                                    }
+                                </td>
+                                <td class="text-center">
+                                    <div class="btn-group btn-group-sm">
+                                        @if (backup.ExisteArchivo && backup.Id > 0)
+                                        {
+                                            <a asp-action="Descargar" asp-route-id="@backup.Id" 
+                                               class="btn btn-outline-success" title="Descargar">
+                                                <i class="fas fa-download"></i>
+                                            </a>
+                                        }
+                                        @if (backup.Id > 0)
+                                        {
+                                            <form asp-action="Eliminar" asp-route-id="@backup.Id" method="post" class="d-inline">
+                                                @Html.AntiForgeryToken()
+                                                <button type="submit" class="btn btn-outline-danger" title="Eliminar"
+                                                        onclick="return confirm('¿Estás seguro de eliminar este respaldo?')">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        }
+        else
+        {
+            <div class="text-center py-5">
+                <i class="fas fa-database fa-4x text-muted mb-3"></i>
+                <h5 class="text-muted">No hay respaldos</h5>
+                <p class="text-muted mb-4">Crea tu primer respaldo para proteger los datos de la biblioteca.</p>
+                <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#modalNuevoBackup">
+                    <i class="fas fa-plus me-1"></i>Crear primer respaldo
+                </button>
+            </div>
+        }
+    </div>
+</div>
+
+<!-- Información adicional -->
+<div class="card shadow-sm mt-4">
+    <div class="card-body">
+        <h6 class="mb-3"><i class="fas fa-info-circle me-2 text-info"></i>Información sobre los respaldos</h6>
+        <div class="row">
+            <div class="col-md-6">
+                <ul class="list-unstyled small text-muted mb-0">
+                    <li><i class="fas fa-check text-success me-2"></i>Los respaldos incluyen todos los datos de la biblioteca</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Cada respaldo es un archivo SQL independiente</li>
+                    <li><i class="fas fa-check text-success me-2"></i>Los respaldos no se sobrescriben entre sí</li>
+                </ul>
+            </div>
+            <div class="col-md-6">
+                <ul class="list-unstyled small text-muted mb-0">
+                    <li><i class="fas fa-folder me-2"></i>Ubicación: <code>/Backups/</code></li>
+                    <li><i class="fas fa-shield-alt me-2"></i>Solo administradores pueden gestionar respaldos</li>
+                    <li><i class="fas fa-lightbulb me-2"></i>Se recomienda crear respaldos semanalmente</li>
+                    <li><i class="fas fa-clock me-2"></i><strong>Tiempo típico:</strong> 10-60 segundos</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Nuevo Backup -->
+<div class="modal fade" id="modalNuevoBackup" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form asp-action="Crear" method="post">
+                @Html.AntiForgeryToken()
+                <div class="modal-header">
+                    <h5 class="modal-title">
+                        <i class="fas fa-database me-2"></i>Crear Nuevo Respaldo
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label for="descripcion" class="form-label">Descripción (opcional)</label>
+                        <input type="text" class="form-control" id="descripcion" name="descripcion" 
+                               placeholder="Ej: Respaldo antes de actualización...">
+                        <div class="form-text">Una nota para identificar este respaldo.</div>
+                    </div>
+                    <div class="alert alert-info mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        <strong>El respaldo incluirá todos los libros, ejemplares, usuarios y préstamos.</strong>
+                        <br />
+                        <small class="mt-2 d-block">
+                            <i class="fas fa-clock me-1"></i>
+                            <strong>Tiempo estimado:</strong> 
+                            <ul class="mb-0 mt-2 small">
+                                <li>Con <strong>mysqldump</strong> (si está disponible): <strong>5-30 segundos</strong></li>
+                                <li>Método manual: <strong>30 segundos - 2 minutos</strong> (depende del tamaño de datos)</li>
+                            </ul>
+                        </small>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnCrearBackup">
+                        <i class="fas fa-download me-1"></i>Crear Respaldo
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Progreso Backup -->
+<div class="modal fade" id="modalProgresoBackup" tabindex="-1" data-bs-backdrop="static" data-bs-keyboard="false">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-body py-4">
+                <div class="text-center mb-3">
+                    <div class="spinner-border text-primary mb-2" role="status" style="width: 3rem; height: 3rem;">
+                        <span class="visually-hidden">Generando...</span>
+                    </div>
+                    <h5 class="mb-1">Generando respaldo...</h5>
+                    <p class="text-muted mb-3" id="estadoProgreso">Iniciando...</p>
+                </div>
+                
+                <!-- Barra de progreso -->
+                <div class="progress mb-3" style="height: 25px;">
+                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                         role="progressbar" 
+                         id="barraProgreso"
+                         style="width: 0%" 
+                         aria-valuenow="0" 
+                         aria-valuemin="0" 
+                         aria-valuemax="100">
+                        <span id="porcentajeProgreso">0%</span>
+                    </div>
+                </div>
+                
+                <div class="text-center">
+                    <small class="text-muted d-block">No cierres esta ventana</small>
+                    <small class="text-muted" id="tiempoTranscurrido">Tiempo: 0s</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const formBackup = document.querySelector('#modalNuevoBackup form');
+        const modalNuevoBackup = bootstrap.Modal.getInstance(document.getElementById('modalNuevoBackup')) || 
+                                  new bootstrap.Modal(document.getElementById('modalNuevoBackup'));
+        const modalProgreso = bootstrap.Modal.getInstance(document.getElementById('modalProgresoBackup')) || 
+                               new bootstrap.Modal(document.getElementById('modalProgresoBackup'));
+        
+        let taskId = null;
+        let intervaloProgreso = null;
+        let inicioTiempo = null;
+        let timeoutMaximo = null;
+        
+        if (formBackup) {
+            formBackup.addEventListener('submit', async function(e) {
+                e.preventDefault();
+                
+                const descripcion = document.getElementById('descripcion').value;
+                const formData = new FormData(formBackup);
+                
+                try {
+                    // Iniciar backup
+                    const response = await fetch('@Url.Action("Crear", "Backup")', {
+                        method: 'POST',
+                        headers: {
+                            'RequestVerificationToken': formData.get('__RequestVerificationToken')
+                        },
+                        body: formData
+                    });
+                    
+                    const data = await response.json();
+                    taskId = data.taskId;
+                    
+                    // Cerrar modal de creación
+                    modalNuevoBackup.hide();
+                    
+                    // Mostrar modal de progreso
+                    inicioTiempo = Date.now();
+                    modalProgreso.show();
+                    
+                    // Iniciar polling de progreso
+                    intervaloProgreso = setInterval(consultarProgreso, 500);
+                    consultarProgreso();
+                    
+                    // Timeout máximo de 5 minutos
+                    timeoutMaximo = setTimeout(() => {
+                        clearInterval(intervaloProgreso);
+                        alert('El backup está tardando más de lo esperado. Por favor, verifica manualmente si se creó el respaldo.');
+                        modalProgreso.hide();
+                        window.location.reload();
+                    }, 300000); // 5 minutos
+                    
+                } catch (error) {
+                    alert('Error al iniciar el backup: ' + error.message);
+                }
+            });
+        }
+        
+        function consultarProgreso() {
+            if (!taskId) return;
+            
+            fetch(`@Url.Action("Progreso", "Backup")?taskId=${taskId}`)
+                .then(response => response.json())
+                .then(data => {
+                    if (data.error) {
+                        clearInterval(intervaloProgreso);
+                        alert('Error: ' + data.error);
+                        modalProgreso.hide();
+                        return;
+                    }
+                    
+                    // Actualizar barra de progreso
+                    const barra = document.getElementById('barraProgreso');
+                    const porcentaje = document.getElementById('porcentajeProgreso');
+                    const estado = document.getElementById('estadoProgreso');
+                    const tiempo = document.getElementById('tiempoTranscurrido');
+                    
+                    barra.style.width = data.porcentaje + '%';
+                    barra.setAttribute('aria-valuenow', data.porcentaje);
+                    porcentaje.textContent = data.porcentaje + '%';
+                    estado.textContent = data.estado || 'Procesando...';
+                    
+                    if (inicioTiempo) {
+                        const segundos = Math.floor((Date.now() - inicioTiempo) / 1000);
+                        tiempo.textContent = `Tiempo: ${segundos}s`;
+                    }
+                    
+                    // Si está completo o hay error
+                    if (data.exitoso !== null && data.exitoso !== undefined) {
+                        clearInterval(intervaloProgreso);
+                        if (timeoutMaximo) clearTimeout(timeoutMaximo);
+                        
+                        setTimeout(() => {
+                            modalProgreso.hide();
+                            if (data.exitoso) {
+                                window.location.reload(); // Recargar para ver el nuevo backup
+                            } else {
+                                alert('Error: ' + (data.mensaje || 'Error desconocido'));
+                            }
+                        }, 1000);
+                    }
+                    // También verificar si el porcentaje es 100 y no hay error
+                    else if (data.porcentaje >= 100 && data.estado && data.estado.toLowerCase().includes('completado')) {
+                        clearInterval(intervaloProgreso);
+                        if (timeoutMaximo) clearTimeout(timeoutMaximo);
+                        
+                        setTimeout(() => {
+                            modalProgreso.hide();
+                            window.location.reload(); // Recargar para ver el nuevo backup
+                        }, 1000);
+                    }
+                    // Verificar si hay error en el estado
+                    else if (data.estado && data.estado.toLowerCase().includes('error')) {
+                        clearInterval(intervaloProgreso);
+                        if (timeoutMaximo) clearTimeout(timeoutMaximo);
+                        
+                        setTimeout(() => {
+                            modalProgreso.hide();
+                            alert('Error: ' + (data.mensaje || 'Error desconocido'));
+                        }, 1000);
+                    }
+                })
+                .catch(error => {
+                    console.error('Error al consultar progreso:', error);
+                    // Si hay error de red, esperar un poco más antes de mostrar error
+                    // Puede ser que el servidor esté procesando
+                });
+        }
+    });
+</script>
+}
+

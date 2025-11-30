@@ -1,0 +1,194 @@
+@{
+    ViewData["Title"] = "Exportar Reportes";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h3 mb-0 text-primary">
+        <i class="fas fa-file-export me-2"></i>Exportar Reportes
+    </h1>
+    <a asp-controller="Reportes" asp-action="Index" class="btn btn-outline-secondary">
+        <i class="fas fa-chart-bar me-1"></i>Ver Reportes
+    </a>
+</div>
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger alert-dismissible fade show" role="alert">
+        <i class="fas fa-exclamation-triangle me-2"></i>@TempData["ErrorMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success alert-dismissible fade show" role="alert">
+        <i class="fas fa-check-circle me-2"></i>@TempData["SuccessMessage"]
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+}
+
+<div class="row g-4">
+    <!-- Préstamos Vencidos -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100 border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Préstamos Vencidos
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Lista de todos los préstamos que han superado su fecha de vencimiento y aún no han sido devueltos.
+                </p>
+                <ul class="list-unstyled small text-muted mb-4">
+                    <li><i class="fas fa-check me-2 text-success"></i>Código del ejemplar</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Datos del libro</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Usuario y curso</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Días de atraso</li>
+                </ul>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-grid gap-2">
+                    <a asp-action="PrestamosVencidosExcel" class="btn btn-success">
+                        <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+                    </a>
+                    <a asp-action="PrestamosVencidosPdf" class="btn btn-danger">
+                        <i class="fas fa-file-pdf me-2"></i>Exportar a PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Inventario Completo -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100 border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-boxes me-2"></i>Inventario Completo
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Listado completo de todos los ejemplares de la biblioteca con su estado actual.
+                </p>
+                <ul class="list-unstyled small text-muted mb-4">
+                    <li><i class="fas fa-check me-2 text-success"></i>Código de barras</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Título, autor, editorial</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Ubicación física</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Estado y disponibilidad</li>
+                </ul>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-grid gap-2">
+                    <a asp-action="InventarioExcel" class="btn btn-success">
+                        <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+                    </a>
+                    <a asp-action="InventarioPdf" class="btn btn-danger">
+                        <i class="fas fa-file-pdf me-2"></i>Exportar a PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Historial de Circulación -->
+    <div class="col-lg-4">
+        <div class="card shadow-sm h-100 border-info">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-history me-2"></i>Historial de Circulación
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="text-muted">
+                    Registro histórico de todos los préstamos y devoluciones realizados.
+                </p>
+                <ul class="list-unstyled small text-muted mb-3">
+                    <li><i class="fas fa-check me-2 text-success"></i>Fechas de préstamo y devolución</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Usuario y libro</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Estado del préstamo</li>
+                    <li><i class="fas fa-check me-2 text-success"></i>Días de préstamo</li>
+                </ul>
+                
+                <div class="border rounded p-3 bg-light mb-3">
+                    <label class="form-label small fw-semibold">Filtrar por período (opcional)</label>
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <label class="form-label small text-muted">Desde</label>
+                            <input type="date" class="form-control form-control-sm" id="fechaDesde" />
+                        </div>
+                        <div class="col-6">
+                            <label class="form-label small text-muted">Hasta</label>
+                            <input type="date" class="form-control form-control-sm" id="fechaHasta" />
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="card-footer bg-transparent">
+                <div class="d-grid gap-2">
+                    <button type="button" class="btn btn-success" onclick="exportarHistorial('excel')">
+                        <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+                    </button>
+                    <button type="button" class="btn btn-danger" onclick="exportarHistorial('pdf')">
+                        <i class="fas fa-file-pdf me-2"></i>Exportar a PDF
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Información adicional -->
+<div class="card shadow-sm mt-4">
+    <div class="card-body">
+        <div class="row align-items-center">
+            <div class="col-md-8">
+                <h6 class="mb-2"><i class="fas fa-info-circle me-2 text-info"></i>Información sobre los reportes</h6>
+                <ul class="small text-muted mb-0">
+                    <li><strong>Excel (.xlsx)</strong>: Ideal para análisis de datos, filtros y gráficos. Compatible con Microsoft Excel, Google Sheets y LibreOffice.</li>
+                    <li><strong>PDF</strong>: Formato listo para imprimir con diseño profesional. Incluye colores según el estado de cada registro.</li>
+                </ul>
+            </div>
+            <div class="col-md-4 text-end">
+                <small class="text-muted">
+                    <i class="fas fa-clock me-1"></i>Los reportes se generan en tiempo real
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function exportarHistorial(formato) {
+            const desde = document.getElementById('fechaDesde').value;
+            const hasta = document.getElementById('fechaHasta').value;
+            
+            let url = formato === 'excel' 
+                ? '@Url.Action("HistorialExcel")' 
+                : '@Url.Action("HistorialPdf")';
+            
+            const params = new URLSearchParams();
+            if (desde) params.append('desde', desde);
+            if (hasta) params.append('hasta', hasta);
+            
+            if (params.toString()) {
+                url += '?' + params.toString();
+            }
+            
+            window.location.href = url;
+        }
+        
+        // Establecer fecha por defecto (último mes)
+        document.addEventListener('DOMContentLoaded', function() {
+            const hoy = new Date();
+            const haceMes = new Date();
+            haceMes.setMonth(haceMes.getMonth() - 1);
+            
+            document.getElementById('fechaHasta').value = hoy.toISOString().split('T')[0];
+            document.getElementById('fechaDesde').value = haceMes.toISOString().split('T')[0];
+        });
+    </script>
+}
+

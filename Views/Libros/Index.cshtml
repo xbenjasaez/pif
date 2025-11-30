@@ -26,6 +26,7 @@
     </div>
     <div class="card-body">
         <form method="get" class="row g-3">
+            <input type="hidden" name="page" value="1" />
             <div class="col-md-4">
                 <label for="searchString" class="form-label">Buscar</label>
                 <input type="text" class="form-control" id="searchString" name="searchString" 
@@ -167,6 +168,79 @@
                         </tbody>
                     </table>
                 </div>
+                
+                <!-- Paginación para Vista de Lista -->
+                @if (ViewBag.TotalPages != null && ViewBag.TotalPages > 1)
+                {
+                    <nav aria-label="Navegación de páginas" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(ViewBag.PageNumber == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="1"
+                                   asp-route-pageSize="@ViewBag.PageSize"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                   asp-route-estado="@ViewBag.EstadoSeleccionado">⟪</a>
+                            </li>
+                            <li class="page-item @(ViewBag.PageNumber == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@(ViewBag.PageNumber - 1)"
+                                   asp-route-pageSize="@ViewBag.PageSize"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                   asp-route-estado="@ViewBag.EstadoSeleccionado">Anterior</a>
+                            </li>
+                            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                            {
+                                @if (i >= ViewBag.PageNumber - 2 && i <= ViewBag.PageNumber + 2)
+                                {
+                                    <li class="page-item @(i == ViewBag.PageNumber ? "active" : "")">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@i"
+                                           asp-route-pageSize="@ViewBag.PageSize"
+                                           asp-route-searchString="@ViewBag.SearchString"
+                                           asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                           asp-route-estado="@ViewBag.EstadoSeleccionado">@i</a>
+                                    </li>
+                                }
+                                else if (i == 1 || i == ViewBag.TotalPages)
+                                {
+                                    <li class="page-item @(i == ViewBag.PageNumber ? "active" : "")">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@i"
+                                           asp-route-pageSize="@ViewBag.PageSize"
+                                           asp-route-searchString="@ViewBag.SearchString"
+                                           asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                           asp-route-estado="@ViewBag.EstadoSeleccionado">@i</a>
+                                    </li>
+                                }
+                                else if (i == ViewBag.PageNumber - 3 || i == ViewBag.PageNumber + 3)
+                                {
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                }
+                            }
+                            <li class="page-item @(ViewBag.PageNumber == ViewBag.TotalPages ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@(ViewBag.PageNumber + 1)"
+                                   asp-route-pageSize="@ViewBag.PageSize"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                   asp-route-estado="@ViewBag.EstadoSeleccionado">Siguiente</a>
+                            </li>
+                            <li class="page-item @(ViewBag.PageNumber == ViewBag.TotalPages ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@ViewBag.TotalPages"
+                                   asp-route-pageSize="@ViewBag.PageSize"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                   asp-route-estado="@ViewBag.EstadoSeleccionado">⟫</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Mostrando @(((ViewBag.PageNumber - 1) * ViewBag.PageSize) + 1) - @(Math.Min(ViewBag.PageNumber * ViewBag.PageSize, ViewBag.TotalItems)) de @ViewBag.TotalItems libros.
+                    </div>
+                }
             </div>
 
             <!-- Vista de Cuadrícula -->
@@ -258,6 +332,79 @@
                         </div>
                     }
                 </div>
+                
+                <!-- Paginación para Vista de Cuadrícula -->
+                @if (ViewBag.TotalPages != null && ViewBag.TotalPages > 1)
+                {
+                    <nav aria-label="Navegación de páginas" class="mt-4">
+                        <ul class="pagination justify-content-center">
+                            <li class="page-item @(ViewBag.PageNumber == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="1"
+                                   asp-route-pageSize="@ViewBag.PageSize"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                   asp-route-estado="@ViewBag.EstadoSeleccionado">⟪</a>
+                            </li>
+                            <li class="page-item @(ViewBag.PageNumber == 1 ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@(ViewBag.PageNumber - 1)"
+                                   asp-route-pageSize="@ViewBag.PageSize"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                   asp-route-estado="@ViewBag.EstadoSeleccionado">Anterior</a>
+                            </li>
+                            @for (int i = 1; i <= ViewBag.TotalPages; i++)
+                            {
+                                @if (i >= ViewBag.PageNumber - 2 && i <= ViewBag.PageNumber + 2)
+                                {
+                                    <li class="page-item @(i == ViewBag.PageNumber ? "active" : "")">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@i"
+                                           asp-route-pageSize="@ViewBag.PageSize"
+                                           asp-route-searchString="@ViewBag.SearchString"
+                                           asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                           asp-route-estado="@ViewBag.EstadoSeleccionado">@i</a>
+                                    </li>
+                                }
+                                else if (i == 1 || i == ViewBag.TotalPages)
+                                {
+                                    <li class="page-item @(i == ViewBag.PageNumber ? "active" : "")">
+                                        <a class="page-link" asp-action="Index"
+                                           asp-route-page="@i"
+                                           asp-route-pageSize="@ViewBag.PageSize"
+                                           asp-route-searchString="@ViewBag.SearchString"
+                                           asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                           asp-route-estado="@ViewBag.EstadoSeleccionado">@i</a>
+                                    </li>
+                                }
+                                else if (i == ViewBag.PageNumber - 3 || i == ViewBag.PageNumber + 3)
+                                {
+                                    <li class="page-item disabled"><span class="page-link">...</span></li>
+                                }
+                            }
+                            <li class="page-item @(ViewBag.PageNumber == ViewBag.TotalPages ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@(ViewBag.PageNumber + 1)"
+                                   asp-route-pageSize="@ViewBag.PageSize"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                   asp-route-estado="@ViewBag.EstadoSeleccionado">Siguiente</a>
+                            </li>
+                            <li class="page-item @(ViewBag.PageNumber == ViewBag.TotalPages ? "disabled" : "")">
+                                <a class="page-link" asp-action="Index"
+                                   asp-route-page="@ViewBag.TotalPages"
+                                   asp-route-pageSize="@ViewBag.PageSize"
+                                   asp-route-searchString="@ViewBag.SearchString"
+                                   asp-route-categoria="@ViewBag.CategoriaSeleccionada"
+                                   asp-route-estado="@ViewBag.EstadoSeleccionado">⟫</a>
+                            </li>
+                        </ul>
+                    </nav>
+                    <div class="text-center text-muted small mt-2">
+                        Mostrando @(((ViewBag.PageNumber - 1) * ViewBag.PageSize) + 1) - @(Math.Min(ViewBag.PageNumber * ViewBag.PageSize, ViewBag.TotalItems)) de @ViewBag.TotalItems libros.
+                    </div>
+                }
             </div>
         }
         else

@@ -89,6 +89,12 @@ namespace BibliotecaVirtualWeb.Controllers
         public async Task<IActionResult> Logout()
         {
             await _signInManager.SignOutAsync();
+            
+            // Headers para forzar que el navegador no use caché al volver atrás
+            Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate, private";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
+            
             return RedirectToAction(nameof(Login));
         }
 
@@ -96,6 +102,21 @@ namespace BibliotecaVirtualWeb.Controllers
         public IActionResult AccessDenied()
         {
             return View();
+        }
+
+        /// <summary>
+        /// Endpoint para verificar si la sesión del usuario sigue activa.
+        /// Usado por JavaScript para detectar cuando se navega con el botón "atrás" después de cerrar sesión.
+        /// </summary>
+        [AllowAnonymous]
+        [HttpGet]
+        public IActionResult CheckSession()
+        {
+            Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate";
+            Response.Headers["Pragma"] = "no-cache";
+            Response.Headers["Expires"] = "0";
+            
+            return Json(new { authenticated = User?.Identity?.IsAuthenticated ?? false });
         }
 
         private IActionResult RedirectToLocal(string? returnUrl)

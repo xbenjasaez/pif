@@ -1,3 +1,4 @@
+@using System.Linq
 @model IEnumerable<BibliotecaVirtualWeb.Models.Usuario>
 @{
     Layout = null;
@@ -10,101 +11,133 @@
     <title>Credenciales de alumnos</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet" />
     <style>
-        body {
-            background: #f5f5f5;
-            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-            padding: 2rem;
+        .print-toolbar {
+            position: sticky;
+            top: 0;
+            z-index: 10;
+            background-color: #ffffff;
+            border-bottom: 1px solid #e5e5e5;
+            padding: 1rem 0;
+            margin-bottom: 1.5rem;
         }
-        .page {
-            display: grid;
-            grid-template-columns: repeat(2, 8.5cm);
-            grid-template-rows: repeat(2, 5.4cm);
-            gap: 1cm;
-            margin-bottom: 1.5cm;
+
+        .barcode-page {
             page-break-after: always;
+            padding-bottom: 1.5rem;
+        }
+
+        .barcode-page:last-child {
+            page-break-after: auto;
+        }
+
+        .barcode-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+            gap: 1rem;
+            min-height: 10rem;
+        }
+
+        .barcode-card {
+            border: 1px solid #d9d9d9;
+            border-radius: 0.5rem;
+            padding: 1rem;
+            background-color: #fff;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.05);
+            page-break-inside: avoid;
+        }
+
+        .barcode-wrapper {
+            display: flex;
             justify-content: center;
+            align-items: center;
+            width: 5cm;
+            height: 2.5cm;
+            margin: 0 auto;
         }
-        .card {
-            width: 8.5cm;
-            height: 5.4cm;
-            padding: 0.55cm 0.7cm;
-            border-radius: 14px;
-            background: #ffffff;
-            box-shadow: 0 8px 20px rgba(0,0,0,0.12);
-            display: flex;
-            flex-direction: column;
-            justify-content: space-between;
-            gap: 0.25cm;
+
+        .barcode-wrapper svg {
+            width: 5cm !important;
+            height: 2cm !important;
         }
-        .card-header {
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #667eea;
-            background: #eef0ff;
-            padding: 0.15cm 0.4cm;
-            border-radius: 999px;
-            align-self: flex-start;
+
+        .credential-info {
+            margin-bottom: 0.5rem;
         }
-        .card h5 {
-            font-size: 1rem;
-            margin: 0;
+
+        .credential-info .small {
+            font-size: 0.75rem;
+            color: #6c757d;
+            text-transform: uppercase;
         }
-        .card p {
-            margin: 0;
-        }
-        .info-block {
-            display: flex;
-            flex-direction: column;
-            gap: 0.15cm;
-            flex: 1;
-        }
-        .barcode {
+
+        .credential-info strong {
+            font-size: 0.85rem;
             display: block;
-            width: 100%;
-            height: 1.2cm;
-            flex-shrink: 0;
+            margin-top: 0.25rem;
         }
-        @@page {
-            size: A4 landscape;
-            margin: 1.5cm;
+
+        .credential-info .text-muted {
+            font-size: 0.8rem;
+            margin-top: 0.15rem;
         }
+
         @@media print {
-            body { padding: 0; background: #fff; }
-            .controls { display: none; }
-            .page { page-break-inside: avoid; }
+            body {
+                margin: 0.5cm;
+                background-color: #ffffff !important;
+            }
+
+            .print-toolbar {
+                display: none !important;
+            }
+
+            .barcode-card {
+                box-shadow: none;
+            }
         }
     </style>
 </head>
 <body>
-    <div class="controls mb-3 text-center">
-        <button class="btn btn-primary" onclick="window.print()">
-            <i class="fas fa-print me-2"></i>Imprimir credenciales
-        </button>
-        <a asp-action="Index" class="btn btn-outline-secondary ms-2">
-            <i class="fas fa-arrow-left me-2"></i>Volver
-        </a>
+    <div class="print-toolbar d-print-none">
+        <div class="d-flex flex-column flex-lg-row justify-content-between align-items-lg-center gap-3">
+            <div>
+                <h1 class="h4 mb-1">Credenciales de Alumnos</h1>
+                <p class="text-muted mb-0">Total: @alumnos.Count credenciales</p>
+            </div>
+            <div class="d-flex gap-2">
+                <button type="button" class="btn btn-primary" onclick="window.print()">
+                    <i class="fas fa-print me-1"></i>Imprimir
+                </button>
+                <a asp-action="Index" class="btn btn-outline-secondary">
+                    <i class="fas fa-arrow-left me-1"></i>Volver
+                </a>
+            </div>
+        </div>
     </div>
 
-    @for (int i = 0; i < alumnos.Count; i += 4)
+    @foreach (var grupo in alumnos.Chunk(8))
     {
-        <div class="page">
-            @foreach (var alumno in alumnos.Skip(i).Take(4))
-            {
-                var curso = string.IsNullOrWhiteSpace(alumno.Curso) ? "Curso: N/D" : $"Curso: {alumno.Curso}";
-                <div class="card">
-                    <div class="card-header">Biblioteca Escolar</div>
-                    <div class="info-block">
-                        <h5>@alumno.NombreCompleto</h5>
-                        <p class="text-muted">@curso</p>
-                        <p><strong>RUT:</strong> @alumno.RUT</p>
+        <div class="barcode-page">
+            <div class="barcode-grid">
+                @foreach (var alumno in grupo)
+                {
+                    var curso = string.IsNullOrWhiteSpace(alumno.CursoConLetra) ? "N/D" : alumno.CursoConLetra;
+                    <div class="barcode-card">
+                        <div class="credential-info">
+                            <span class="small">Biblioteca Escolar</span>
+                            <strong>@alumno.NombreCompleto</strong>
+                            <div class="text-muted">@curso</div>
+                            <div class="text-muted" style="font-size: 0.75rem;">RUT: @alumno.RUT</div>
+                        </div>
+                        <div class="barcode-wrapper">
+                            <svg class="barcode-svg" data-rut="@alumno.RUT"></svg>
+                        </div>
                     </div>
-                    <svg class="barcode" data-rut="@alumno.RUT"></svg>
-                </div>
-            }
+                }
+            </div>
         </div>
     }
 
-    <script src="https://kit.fontawesome.com/a2e0e9cf0b.js" crossorigin="anonymous"></script>
     <script src="https://cdn.jsdelivr.net/npm/jsbarcode@3.11.5/dist/JsBarcode.all.min.js"></script>
     <script>
         function rutToEan13(rawRut) {
@@ -117,28 +150,31 @@
         }
 
         document.addEventListener("DOMContentLoaded", function () {
-            document.querySelectorAll(".barcode").forEach(el => {
+            const cards = document.querySelectorAll(".barcode-svg");
+            cards.forEach((el) => {
                 const rut = el.dataset.rut || "";
                 const eanValue = rutToEan13(rut);
 
                 if (!eanValue) {
-                    el.replaceWith("RUT inválido");
+                    el.insertAdjacentHTML("afterend", "<small class='text-danger'>RUT inválido</small>");
                     return;
                 }
 
                 JsBarcode(el, eanValue, {
                     format: "EAN13",
-                    lineColor: "#111",
+                    lineColor: "#000000",
                     width: 1.6,
-                    height: 50,
-                    fontSize: 12,
+                    height: 60,
                     displayValue: true,
+                    fontSize: 14,
                     margin: 0,
                     flat: true
                 });
+
+                el.style.width = "5cm";
+                el.style.height = "2cm";
             });
         });
     </script>
 </body>
 </html>
-

@@ -28,6 +28,24 @@
             </div>
         }
 
+        @{
+            var prestamoActivo = ViewBag.PrestamoActivo as BibliotecaVirtualWeb.Models.Prestamo;
+        }
+
+        @if (prestamoActivo != null)
+        {
+            <div class="alert alert-warning mb-4">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>⚠️ Préstamo Activo:</strong> Este ejemplar está actualmente prestado a 
+                <strong>@prestamoActivo.Usuario?.NombreCompleto</strong> desde el 
+                <strong>@prestamoActivo.FechaPrestamo.ToString("dd/MM/yyyy")</strong>.
+                <br />
+                <small class="text-muted">
+                    Para cambiar el estado, primero debe devolver el préstamo desde el módulo de préstamos.
+                </small>
+            </div>
+        }
+
         <form asp-action="Edit" method="post">
             <div asp-validation-summary="All" class="alert alert-danger" role="alert"></div>
             
@@ -52,20 +70,71 @@
 
             <div class="mb-3">
                 <label asp-for="Estado" class="form-label">Estado</label>
-                <select asp-for="Estado" class="form-select">
+                @{
+                    var estadoDeshabilitado = prestamoActivo != null && Model.Estado != "Prestado" && Model.Estado != "Extraviado" && Model.Estado != "Dado de baja" && Model.Estado != "Deteriorado" && Model.Estado != "En Reparacion";
+                }
+                <select asp-for="Estado" class="form-select" id="estadoSelect" disabled="@estadoDeshabilitado">
                     <option value="Disponible">Disponible</option>
                     <option value="Prestado">Prestado</option>
                     <option value="Reservado">Reservado</option>
+                    <option value="Deteriorado">Deteriorado</option>
                     <option value="En Reparacion">En Reparación</option>
                     <option value="Extraviado">Extraviado</option>
                     <option value="Dado de baja">Dado de baja</option>
                 </select>
+                @if (prestamoActivo != null && Model.Estado != "Prestado" && Model.Estado != "Extraviado" && Model.Estado != "Dado de baja" && Model.Estado != "Deteriorado" && Model.Estado != "En Reparacion")
+                {
+                    <small class="form-text text-warning">
+                        <i class="fas fa-info-circle me-1"></i>
+                        El estado está bloqueado porque existe un préstamo activo. Puede cambiarlo a "Deteriorado", "En Reparación", "Extraviado" o "Dado de baja".
+                    </small>
+                }
+                else if (prestamoActivo == null && Model.Estado != "Prestado")
+                {
+                    <small class="form-text text-muted">
+                        <i class="fas fa-info-circle me-1"></i>
+                        Para cambiar a "Prestado", debe crear un préstamo desde el módulo de préstamos.
+                    </small>
+                }
                 <span asp-validation-for="Estado" class="text-danger"></span>
+            </div>
+
+            <!-- Modal para detalles de Deteriorado/En Reparación -->
+            <div class="modal fade" id="detallesEstadoModal" tabindex="-1" aria-labelledby="detallesEstadoModalLabel" aria-hidden="true">
+                <div class="modal-dialog">
+                    <div class="modal-content">
+                        <div class="modal-header">
+                            <h5 class="modal-title" id="detallesEstadoModalLabel">
+                                <i class="fas fa-info-circle me-2"></i>Detalles del Estado
+                            </h5>
+                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                        </div>
+                        <div class="modal-body">
+                            <div class="mb-3">
+                                <label for="detallesEstado" class="form-label">
+                                    <span id="detallesLabel">Describe los detalles:</span>
+                                </label>
+                                <textarea id="detallesEstado" class="form-control" rows="4" 
+                                          placeholder="Ej: Páginas sueltas, tapa despegada, etc."></textarea>
+                                <small class="form-text text-muted">
+                                    <i class="fas fa-info-circle me-1"></i>
+                                    Esta información se guardará en las notas del ejemplar.
+                                </small>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                            <button type="button" class="btn btn-primary" id="confirmarEstadoBtn">
+                                <i class="fas fa-check me-1"></i>Confirmar
+                            </button>
+                        </div>
+                    </div>
+                </div>
             </div>
 
             <div class="mb-3">
                 <label asp-for="Notas" class="form-label">Notas</label>
-                <textarea asp-for="Notas" class="form-control" rows="3"></textarea>
+                <textarea asp-for="Notas" class="form-control" rows="3" id="notasTextarea"></textarea>
                 <span asp-validation-for="Notas" class="text-danger"></span>
             </div>
 
@@ -83,5 +152,107 @@
 
 @section Scripts {
     @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const estadoSelect = document.getElementById('estadoSelect');
+            const notasTextarea = document.getElementById('notasTextarea');
+            const tienePrestamoActivo = @(prestamoActivo != null ? "true" : "false");
+            const estadoActual = '@Model.Estado';
+            let estadoAnterior = estadoActual;
+            let estadoPendiente = null;
+            
+            const detallesModal = new bootstrap.Modal(document.getElementById('detallesEstadoModal'));
+            const detallesTextarea = document.getElementById('detallesEstado');
+            const detallesLabel = document.getElementById('detallesLabel');
+            const confirmarBtn = document.getElementById('confirmarEstadoBtn');
+            
+            // Estados que requieren detalles
+            const estadosConDetalles = ['Deteriorado', 'En Reparacion'];
+            
+            if (estadoSelect) {
+                estadoSelect.addEventListener('change', function () {
+                    const nuevoEstado = this.value;
+                    
+                    // Validar "Prestado" sin préstamo activo
+                    if (nuevoEstado === 'Prestado' && !tienePrestamoActivo) {
+                        alert('⚠️ No se puede cambiar el estado a "Prestado" sin un préstamo activo.\n\n' +
+                              'Debe crear un préstamo primero desde el módulo de préstamos.');
+                        this.value = estadoAnterior;
+                        return;
+                    }
+                    
+                    // Si el nuevo estado requiere detalles, abrir modal
+                    if (estadosConDetalles.includes(nuevoEstado)) {
+                        estadoPendiente = nuevoEstado;
+                        
+                        // Configurar el modal según el estado
+                        if (nuevoEstado === 'Deteriorado') {
+                            detallesLabel.textContent = 'Describe el deterioro:';
+                            detallesTextarea.placeholder = 'Ej: Páginas sueltas, tapa despegada, manchas de agua, etc.';
+                        } else if (nuevoEstado === 'En Reparacion') {
+                            detallesLabel.textContent = 'Describe qué se está reparando:';
+                            detallesTextarea.placeholder = 'Ej: Reparación de encuadernación, restauración de páginas, etc.';
+                        }
+                        
+                        // Limpiar el textarea del modal
+                        detallesTextarea.value = '';
+                        
+                        // Mostrar modal
+                        detallesModal.show();
+                        
+                        // Restaurar el estado anterior mientras se decide
+                        this.value = estadoAnterior;
+                    } else {
+                        // Si no requiere detalles, actualizar estado anterior
+                        estadoAnterior = nuevoEstado;
+                    }
+                });
+            }
+            
+            // Confirmar cambio de estado con detalles
+            confirmarBtn.addEventListener('click', function () {
+                if (!estadoPendiente) return;
+                
+                const detalles = detallesTextarea.value.trim();
+                
+                if (detalles === '') {
+                    alert('⚠️ Por favor, ingrese los detalles del estado.');
+                    detallesTextarea.focus();
+                    return;
+                }
+                
+                // Actualizar el estado
+                estadoSelect.value = estadoPendiente;
+                estadoAnterior = estadoPendiente;
+                
+                // Agregar detalles a las notas
+                const fecha = new Date().toLocaleDateString('es-ES');
+                const prefijo = estadoPendiente === 'Deteriorado' 
+                    ? `[Deteriorado - ${fecha}] ` 
+                    : `[En Reparación - ${fecha}] `;
+                
+                const notasActuales = notasTextarea.value.trim();
+                const nuevaNota = prefijo + detalles;
+                
+                if (notasActuales) {
+                    notasTextarea.value = notasActuales + '\n\n' + nuevaNota;
+                } else {
+                    notasTextarea.value = nuevaNota;
+                }
+                
+                // Cerrar modal
+                detallesModal.hide();
+                estadoPendiente = null;
+            });
+            
+            // Limpiar estado pendiente si se cancela el modal
+            document.getElementById('detallesEstadoModal').addEventListener('hidden.bs.modal', function () {
+                if (estadoPendiente) {
+                    estadoSelect.value = estadoAnterior;
+                    estadoPendiente = null;
+                }
+            });
+        });
+    </script>
 }
 

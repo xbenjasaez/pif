@@ -299,6 +299,10 @@ builder.Services.PostConfigure<Microsoft.AspNetCore.Antiforgery.AntiforgeryOptio
 builder.Services.AddHttpContextAccessor();
 builder.Services.AddScoped<BibliotecaVirtualWeb.Services.IAuditoriaService, BibliotecaVirtualWeb.Services.AuditoriaService>();
 builder.Services.AddScoped<BibliotecaVirtualWeb.Services.IAlertaSistemaService, BibliotecaVirtualWeb.Services.AlertaSistemaService>();
+builder.Services.AddScoped<BibliotecaVirtualWeb.Services.ImportadorService>();
+builder.Services.AddScoped<BibliotecaVirtualWeb.Services.ExportacionService>();
+builder.Services.AddScoped<BibliotecaVirtualWeb.Services.BackupService>();
+builder.Services.AddScoped<BibliotecaVirtualWeb.Services.IGamificationService, BibliotecaVirtualWeb.Services.GamificationService>();
 builder.Services.AddSingleton<ReportesPdfRenderer>();
 
 var app = builder.Build();
@@ -342,6 +346,25 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Middleware para prevenir caché en páginas autenticadas
+app.Use(async (context, next) =>
+{
+    // Solo aplicar a páginas que requieren autenticación (no archivos estáticos, no catálogo público)
+    var path = context.Request.Path.Value?.ToLower() ?? "";
+    var isStaticFile = path.Contains("/lib/") || path.Contains("/css/") || path.Contains("/js/") || path.Contains("/images/");
+    var isPublicPage = path.Contains("/catalogopublico") || path.Contains("/account/login") || path.Contains("/account/accessdenied");
+    
+    if (!isStaticFile && !isPublicPage && context.User?.Identity?.IsAuthenticated == true)
+    {
+        // Headers para prevenir que el navegador guarde en caché páginas autenticadas
+        context.Response.Headers["Cache-Control"] = "no-cache, no-store, must-revalidate, private";
+        context.Response.Headers["Pragma"] = "no-cache";
+        context.Response.Headers["Expires"] = "0";
+    }
+    
+    await next();
+});
 
 app.MapControllerRoute(
     name: "default",

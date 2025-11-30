@@ -3,7 +3,9 @@ param(
     [int]$MysqlPort = 3306,
     [switch]$SkipApache,
     [switch]$StopServicesOnExit,
-    [switch]$SkipPublish
+    [switch]$SkipPublish,
+    [switch]$ForcePublish,
+    [switch]$DevMode  # Usar dotnet run en lugar de publish (más rápido para desarrollo)
 )
 
 $ErrorActionPreference = 'Stop'
@@ -81,22 +83,56 @@ $appExe     = Join-Path $publishDir "BibliotecaVirtualWeb.exe"
 try {
     Write-Step "=== Biblioteca Virtual - Lanzador ===" ([ConsoleColor]::White)
     Throw-IfMissing -path $XamppPath -friendly "XAMPP ($XamppPath)"
-    Throw-IfMissing -path $appExe -friendly "Ejecutable publicado ($appExe)"
+    
+    # En modo desarrollo no necesitamos el exe publicado
+    if (-not $DevMode) {
+        if (-not $SkipPublish -and -not (Test-Path $appExe)) {
+            Write-Step "Ejecutable no encontrado. Se compilará por primera vez..." ([ConsoleColor]::Yellow)
+        } elseif ($SkipPublish) {
+            Throw-IfMissing -path $appExe -friendly "Ejecutable publicado ($appExe)"
+        }
+    }
 
-    if (-not $SkipPublish) {
-        Write-Step "Ejecutando dotnet publish (Release / win-x64)..." ([ConsoleColor]::Yellow)
-        $publishArgs = @(
-            "publish",
-            "`"$repoRoot`"",
-            "-c", "Release",
-            "-r", "win-x64",
-            "--self-contained", "true",
-            "/p:PublishSingleFile=true",
-            "/p:IncludeNativeLibrariesForSelfExtract=true"
-        )
-        $publishProcess = Start-Process -FilePath "dotnet" -ArgumentList $publishArgs -NoNewWindow -Wait -PassThru
-        if ($publishProcess.ExitCode -ne 0) {
-            throw "dotnet publish falló con código $($publishProcess.ExitCode). Revisa la salida."
+    # Modo desarrollo: usar dotnet run (más rápido, no requiere publish)
+    if ($DevMode) {
+        Write-Step "Modo desarrollo activado - usando dotnet run..." ([ConsoleColor]::Cyan)
+    }
+    elseif (-not $SkipPublish) {
+        # Verificar si necesitamos recompilar
+        $needsPublish = $ForcePublish
+        
+        if (-not $needsPublish -and (Test-Path $appExe)) {
+            # Comparar fecha del exe con los archivos fuente
+            $exeDate = (Get-Item $appExe).LastWriteTime
+            $sourceFiles = Get-ChildItem -Path $repoRoot -Include "*.cs","*.cshtml","*.json" -Recurse -File | 
+                           Where-Object { $_.FullName -notmatch "\\(bin|obj)\\" }
+            $newerFiles = $sourceFiles | Where-Object { $_.LastWriteTime -gt $exeDate }
+            
+            if ($newerFiles.Count -gt 0) {
+                Write-Step "Detectados $($newerFiles.Count) archivo(s) modificados. Recompilando..." ([ConsoleColor]::Yellow)
+                $needsPublish = $true
+            } else {
+                Write-Step "No hay cambios desde la última compilación. Saltando publish..." ([ConsoleColor]::Green)
+            }
+        } else {
+            $needsPublish = $true
+        }
+        
+        if ($needsPublish) {
+            Write-Step "Ejecutando dotnet publish (Release / win-x64)..." ([ConsoleColor]::Yellow)
+            $publishArgs = @(
+                "publish",
+                "`"$repoRoot`"",
+                "-c", "Release",
+                "-r", "win-x64",
+                "--self-contained", "true",
+                "/p:PublishSingleFile=true",
+                "/p:IncludeNativeLibrariesForSelfExtract=true"
+            )
+            $publishProcess = Start-Process -FilePath "dotnet" -ArgumentList $publishArgs -NoNewWindow -Wait -PassThru
+            if ($publishProcess.ExitCode -ne 0) {
+                throw "dotnet publish falló con código $($publishProcess.ExitCode). Revisa la salida."
+            }
         }
     }
 
@@ -123,7 +159,14 @@ try {
 
     # Lanzar aplicación
     Write-Step "Iniciando BibliotecaVirtualWeb..." ([ConsoleColor]::White)
-    $appProcess = Start-Process -FilePath $appExe -WorkingDirectory $publishDir -PassThru
+    
+    if ($DevMode) {
+        # En modo desarrollo, usar dotnet run
+        Write-Step "Ejecutando en modo desarrollo (dotnet run)..." ([ConsoleColor]::Cyan)
+        $appProcess = Start-Process -FilePath "dotnet" -ArgumentList "run --project `"$repoRoot`"" -WorkingDirectory $repoRoot -PassThru
+    } else {
+        $appProcess = Start-Process -FilePath $appExe -WorkingDirectory $publishDir -PassThru
+    }
 
     if ($StopServicesOnExit) {
         Write-Step "Esperando a que la aplicación cierre para detener XAMPP..." ([ConsoleColor]::DarkGray)

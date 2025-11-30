@@ -56,42 +56,88 @@ namespace BibliotecaVirtualWeb.Controllers
                     serieDevoluciones.Add(devolucionMes?.Total ?? 0);
                 }
 
+                var hoy = DateTime.Today;
+                var manana = hoy.AddDays(1);
+
                 var dashboardData = new DashboardViewModel
-            {
-                TotalLibros = await _context.Libros.CountAsync(),
-                TotalEjemplares = totalEjemplares,
-                LibrosDisponibles = ejemplaresDisponibles,
-                LibrosPrestados = await _context.Ejemplares.CountAsync(e => e.Estado == "Prestado"),
-                TotalUsuarios = await _context.Usuarios.CountAsync(),
-                PrestamosActivos = await _context.Prestamos.CountAsync(p => p.Estado == "Activo"),
-                PrestamosVencidos = await _context.Prestamos.CountAsync(p => p.Estado == "Activo" && p.FechaVencimiento < DateTime.Now),
-                LibrosRecientes = await _context.Libros
-                    .OrderByDescending(l => l.FechaAgregado)
-                    .Take(5)
-                    .Select(l => new LibroResumenViewModel
-                    {
-                        Id = l.Id,
-                        Titulo = l.Titulo,
-                        Autor = l.Autor,
-                        Estado = l.Estado,
-                        EstadoBadgeClass = l.EstadoBadgeClass
-                    })
-                    .ToListAsync(),
-                PrestamosPorVencer = await _context.Prestamos
-                    .Where(p => p.Estado == "Activo" && p.FechaVencimiento <= DateTime.Now.AddDays(3) && p.FechaVencimiento >= DateTime.Now)
-                    .Include(p => p.Ejemplar)
-                        .ThenInclude(e => e.Libro)
-                    .Include(p => p.Usuario)
-                    .Select(p => new PrestamoResumenViewModel
-                    {
-                        Id = p.Id,
-                        TituloLibro = p.Ejemplar.Libro.Titulo,
-                        NombreUsuario = p.Usuario.NombreCompleto,
-                        FechaVencimiento = p.FechaVencimiento,
-                        DiasRestantes = p.DiasRestantes,
-                        EstadoBadgeClass = p.EstadoBadgeClass
-                    })
-                    .ToListAsync()
+                {
+                    TotalLibros = await _context.Libros.CountAsync(),
+                    TotalEjemplares = totalEjemplares,
+                    LibrosDisponibles = ejemplaresDisponibles,
+                    LibrosPrestados = await _context.Ejemplares.CountAsync(e => e.Estado == "Prestado"),
+                    TotalUsuarios = await _context.Usuarios.CountAsync(),
+                    PrestamosActivos = await _context.Prestamos.CountAsync(p => p.Estado == "Activo"),
+                    PrestamosVencidos = await _context.Prestamos.CountAsync(p => p.Estado == "Activo" && p.FechaVencimiento < DateTime.Now),
+                    EjemplaresDeteriorados = await _context.Ejemplares.CountAsync(e => e.Estado == "Deteriorado"),
+                    PrestamosHoy = await _context.Prestamos.CountAsync(p => p.FechaPrestamo >= hoy && p.FechaPrestamo < manana),
+                    DevolucionesHoy = await _context.Prestamos.CountAsync(p => p.FechaDevolucion != null && p.FechaDevolucion >= hoy && p.FechaDevolucion < manana),
+                    LibrosRecientes = await _context.Libros
+                        .OrderByDescending(l => l.FechaAgregado)
+                        .Take(5)
+                        .Select(l => new LibroResumenViewModel
+                        {
+                            Id = l.Id,
+                            Titulo = l.Titulo,
+                            Autor = l.Autor,
+                            Estado = l.Estado,
+                            EstadoBadgeClass = l.EstadoBadgeClass
+                        })
+                        .ToListAsync(),
+                    PrestamosPorVencer = (await _context.Prestamos
+                        .Where(p => p.Estado == "Activo" && p.FechaVencimiento <= DateTime.Now.AddDays(3) && p.FechaVencimiento >= DateTime.Now)
+                        .Include(p => p.Ejemplar)
+                            .ThenInclude(e => e.Libro)
+                        .Include(p => p.Usuario)
+                        .OrderBy(p => p.FechaVencimiento)
+                        .Take(10)
+                        .ToListAsync())
+                        .Select(p => new PrestamoResumenViewModel
+                        {
+                            Id = p.Id,
+                            TituloLibro = p.Ejemplar?.Libro?.Titulo ?? "Sin título",
+                            NombreUsuario = p.Usuario?.NombreCompleto ?? "Usuario desconocido",
+                            Curso = p.Usuario?.Curso != null ? p.Usuario.Curso + (p.Usuario.LetraCurso ?? "") : null,
+                            CodigoBarras = p.Ejemplar?.CodigoBarras,
+                            FechaVencimiento = p.FechaVencimiento,
+                            DiasRestantes = (int)(p.FechaVencimiento - DateTime.Now).TotalDays,
+                            EstadoBadgeClass = p.EstadoBadgeClass
+                        })
+                        .ToList(),
+                    PrestamosVencidosHoy = (await _context.Prestamos
+                        .Where(p => p.Estado == "Activo" && p.FechaVencimiento < DateTime.Now)
+                        .Include(p => p.Ejemplar)
+                            .ThenInclude(e => e.Libro)
+                        .Include(p => p.Usuario)
+                        .OrderBy(p => p.FechaVencimiento)
+                        .Take(10)
+                        .ToListAsync())
+                        .Select(p => new PrestamoResumenViewModel
+                        {
+                            Id = p.Id,
+                            TituloLibro = p.Ejemplar?.Libro?.Titulo ?? "Sin título",
+                            NombreUsuario = p.Usuario?.NombreCompleto ?? "Usuario desconocido",
+                            Curso = p.Usuario?.Curso != null ? p.Usuario.Curso + (p.Usuario.LetraCurso ?? "") : null,
+                            CodigoBarras = p.Ejemplar?.CodigoBarras,
+                            FechaVencimiento = p.FechaVencimiento,
+                            DiasVencido = (int)(DateTime.Now - p.FechaVencimiento).TotalDays,
+                            EstadoBadgeClass = "badge bg-danger"
+                        })
+                        .ToList(),
+                    EjemplaresDeterioradosLista = await _context.Ejemplares
+                        .Where(e => e.Estado == "Deteriorado")
+                        .Include(e => e.Libro)
+                        .OrderByDescending(e => e.FechaAgregado)
+                        .Take(10)
+                        .Select(e => new EjemplarDeterioradoViewModel
+                        {
+                            Id = e.Id,
+                            CodigoBarras = e.CodigoBarras,
+                            TituloLibro = e.Libro.Titulo,
+                            Ubicacion = e.Ubicacion,
+                            Notas = e.Notas,
+                            PrestadoA = e.PrestadoA
+                        })
+                        .ToListAsync()
                 };
 
                 dashboardData.AlertasActivas = await _alertas.ObtenerAlertasActivasAsync(5);
@@ -138,8 +184,13 @@ namespace BibliotecaVirtualWeb.Controllers
         public int TotalUsuarios { get; set; }
         public int PrestamosActivos { get; set; }
         public int PrestamosVencidos { get; set; }
+        public int EjemplaresDeteriorados { get; set; }
+        public int PrestamosHoy { get; set; }
+        public int DevolucionesHoy { get; set; }
         public List<LibroResumenViewModel> LibrosRecientes { get; set; } = new();
         public List<PrestamoResumenViewModel> PrestamosPorVencer { get; set; } = new();
+        public List<PrestamoResumenViewModel> PrestamosVencidosHoy { get; set; } = new();
+        public List<EjemplarDeterioradoViewModel> EjemplaresDeterioradosLista { get; set; } = new();
         public IEnumerable<SistemaAlerta> AlertasActivas { get; set; } = Enumerable.Empty<SistemaAlerta>();
         public IEnumerable<string> KpiLabels { get; set; } = Enumerable.Empty<string>();
         public IEnumerable<int> KpiPrestamos { get; set; } = Enumerable.Empty<int>();
@@ -160,8 +211,21 @@ namespace BibliotecaVirtualWeb.Controllers
         public int Id { get; set; }
         public string TituloLibro { get; set; } = string.Empty;
         public string NombreUsuario { get; set; } = string.Empty;
+        public string? Curso { get; set; }
+        public string? CodigoBarras { get; set; }
         public DateTime FechaVencimiento { get; set; }
         public int DiasRestantes { get; set; }
+        public int DiasVencido { get; set; }
         public string EstadoBadgeClass { get; set; } = string.Empty;
+    }
+
+    public class EjemplarDeterioradoViewModel
+    {
+        public int Id { get; set; }
+        public string CodigoBarras { get; set; } = string.Empty;
+        public string TituloLibro { get; set; } = string.Empty;
+        public string? Ubicacion { get; set; }
+        public string? Notas { get; set; }
+        public string? PrestadoA { get; set; }
     }
 }

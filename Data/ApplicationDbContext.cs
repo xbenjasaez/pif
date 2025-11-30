@@ -18,6 +18,9 @@ namespace BibliotecaVirtualWeb.Data
         public DbSet<Prestamo> Prestamos { get; set; } = null!;
         public DbSet<Auditoria> Auditorias { get; set; } = null!;
         public DbSet<SistemaAlerta> Alertas { get; set; } = null!;
+        public DbSet<BackupRegistro> BackupRegistros { get; set; } = null!;
+        public DbSet<Logro> Logros { get; set; } = null!;
+        public DbSet<UsuarioLogro> UsuarioLogros { get; set; } = null!;
 
         protected override void OnModelCreating(ModelBuilder modelBuilder)
         {
@@ -59,6 +62,7 @@ namespace BibliotecaVirtualWeb.Data
                 entity.Property(e => e.Email).HasMaxLength(100);
                 entity.Property(e => e.Telefono).HasMaxLength(20);
                 entity.Property(e => e.Estado).IsRequired().HasMaxLength(20);
+                entity.Property(e => e.TipoUsuario).IsRequired().HasMaxLength(20).HasDefaultValue("Alumno");
                 entity.Property(e => e.Notas).HasMaxLength(500);
 
                 entity.HasIndex(e => e.RUT).IsUnique();
@@ -142,12 +146,35 @@ namespace BibliotecaVirtualWeb.Data
                 entity.HasIndex(e => e.Fecha);
             });
 
+            // Configuración de Gamificación
+            modelBuilder.Entity<UsuarioLogro>(entity =>
+            {
+                entity.HasKey(e => e.Id);
+                entity.HasOne(e => e.Usuario)
+                      .WithMany(u => u.UsuarioLogros)
+                      .HasForeignKey(e => e.UsuarioId)
+                      .OnDelete(DeleteBehavior.Cascade);
+                
+                entity.HasOne(e => e.Logro)
+                      .WithMany()
+                      .HasForeignKey(e => e.LogroId)
+                      .OnDelete(DeleteBehavior.Cascade);
+            });
+
             // Datos de ejemplo
             SeedData(modelBuilder);
         }
 
         private void SeedData(ModelBuilder modelBuilder)
         {
+            // Seed Logros
+            modelBuilder.Entity<Logro>().HasData(
+                new Logro { Id = 1, Nombre = "Primeros Pasos", Descripcion = "Realizar tu primer préstamo", Icono = "fa-book-reader", Color = "primary", CodigoInterno = "PRIMER_PRESTAMO", Puntos = 10 },
+                new Logro { Id = 2, Nombre = "Lector Constante", Descripcion = "Completar 5 préstamos", Icono = "fa-book-open", Color = "info", CodigoInterno = "5_PRESTAMOS", Puntos = 50 },
+                new Logro { Id = 3, Nombre = "Devorador de Libros", Descripcion = "Completar 10 préstamos", Icono = "fa-crown", Color = "warning", CodigoInterno = "10_PRESTAMOS", Puntos = 100 },
+                new Logro { Id = 4, Nombre = "Puntualidad Perfecta", Descripcion = "Devolver 3 libros a tiempo consecutivos", Icono = "fa-clock", Color = "success", CodigoInterno = "PUNTUALIDAD_3", Puntos = 30 }
+            );
+
             // Proveedores de ejemplo
             modelBuilder.Entity<Proveedor>().HasData(
                 new Proveedor

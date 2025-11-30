@@ -13,20 +13,176 @@
     <style>
         body {
             min-height: 100vh;
-            background: linear-gradient(135deg, #4b6bff, #7c94ff);
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.45), transparent 55%),
+                linear-gradient(135deg, #4b6bff, #7c94ff);
             display: flex;
             align-items: center;
             justify-content: center;
             padding: 2rem 1rem;
+            overflow: hidden;
         }
         .auth-card {
             width: 100%;
-            max-width: 440px;
+            max-width: 460px;
+            position: relative;
+        }
+        .auth-card::before,
+        .auth-card::after {
+            content: "";
+            position: absolute;
+            border-radius: 999px;
+            opacity: 0.16;
+            z-index: -1;
+        }
+        .auth-card::before {
+            width: 140px;
+            height: 140px;
+            background: #22c55e;
+            top: -40px;
+            left: -40px;
+        }
+        .auth-card::after {
+            width: 180px;
+            height: 180px;
+            background: #f97316;
+            bottom: -60px;
+            right: -60px;
+        }
+
+        /* Estrellitas y detalles suaves para hacerlo más infantil */
+        .auth-stars {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: -2;
+        }
+        .auth-stars span {
+            position: absolute;
+            font-size: 1rem;
+            opacity: 0.4;
+        }
+        .auth-stars span:nth-child(1) { top: 8%; left: 10%; color: #facc15; }
+        .auth-stars span:nth-child(2) { top: 16%; right: 12%; color: #22c55e; }
+        .auth-stars span:nth-child(3) { bottom: 18%; left: 18%; color: #f97316; }
+        .auth-stars span:nth-child(4) { bottom: 10%; right: 8%; color: #38bdf8; }
+
+        /* Botón cohete catálogo público */
+        .rocket-launch-btn {
+            position: relative;
+            overflow: hidden;
+            transition: transform 0.25s ease, box-shadow 0.25s ease;
+        }
+        .rocket-launch-btn .rocket-icon {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            transition: transform 0.6s ease, opacity 0.6s ease;
+        }
+        .rocket-launch-btn.launching {
+            transform: translateY(-2px);
+            box-shadow: 0 12px 30px rgba(37, 99, 235, 0.45);
+        }
+        .rocket-launch-btn.launching .rocket-icon {
+            transform: translateY(-140%);
+            opacity: 0;
+        }
+
+        /* Animación de cohete a pantalla completa */
+        .rocket-overlay {
+            position: fixed;
+            inset: 0;
+            background: radial-gradient(circle at bottom, #1d4ed8 0, #0b1120 50%, #020617 100%);
+            display: flex;
+            align-items: flex-end;
+            justify-content: center;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.25s ease-out;
+            z-index: 9999;
+        }
+        .rocket-overlay.active {
+            opacity: 1;
+        }
+        .rocket-overlay .big-rocket {
+            font-size: 4rem;
+            color: #e5e7eb;
+            animation: rocket-takeoff 0.8s ease-out forwards;
+        }
+        /* Animación del cohete */
+        @@keyframes rocket-takeoff {
+            0% { transform: translateY(40%); opacity: 0; }
+            15% { opacity: 1; }
+            100% { transform: translateY(-120%); opacity: 0; }
+        }
+
+        body.launching-catalog {
+            background:
+                radial-gradient(circle at bottom, rgba(59, 130, 246, 0.45), transparent 60%),
+                linear-gradient(135deg, #1d4ed8, #0f172a) !important;
+            transition: background 0.4s ease-out;
+        }
+        /* Asegurar que el fondo normal se restaure correctamente */
+        body:not(.launching-catalog) {
+            background:
+                radial-gradient(circle at top left, rgba(255, 255, 255, 0.18), transparent 55%),
+                radial-gradient(circle at bottom right, rgba(15, 23, 42, 0.45), transparent 55%),
+                linear-gradient(135deg, #4b6bff, #7c94ff) !important;
         }
     </style>
+    <script>
+        // Limpiar estado inmediatamente al cargar (antes de que se renderice)
+        (function() {
+            function cleanState() {
+                if (document.body) {
+                    document.body.classList.remove('launching-catalog');
+                    // Forzar repintado
+                    document.body.style.display = 'none';
+                    document.body.offsetHeight; // Trigger reflow
+                    document.body.style.display = '';
+                }
+                const overlays = document.querySelectorAll('.rocket-overlay');
+                overlays.forEach(overlay => {
+                    overlay.style.display = 'none';
+                    overlay.remove();
+                });
+                const btn = document.getElementById('btnCatalogoPublico');
+                if (btn) {
+                    btn.classList.remove('launching');
+                }
+            }
+            
+            // Limpiar inmediatamente si el body ya existe
+            if (document.body) {
+                cleanState();
+            }
+            
+            // Limpiar cuando el DOM esté listo
+            if (document.readyState === 'loading') {
+                document.addEventListener('DOMContentLoaded', cleanState);
+            } else {
+                cleanState();
+            }
+            
+            // Limpiar cuando se navega (incluyendo volver atrás)
+            window.addEventListener('pageshow', function(event) {
+                cleanState();
+            });
+            
+            // Limpiar también en focus (por si acaso)
+            window.addEventListener('focus', cleanState);
+        })();
+    </script>
 </head>
 <body>
-    <div class="container">
+    <div class="container position-relative">
+        <div class="auth-stars d-none d-sm-block">
+            <span><i class="fas fa-star"></i></span>
+            <span><i class="fas fa-circle"></i></span>
+            <span><i class="fas fa-heart"></i></span>
+            <span><i class="fas fa-moon"></i></span>
+        </div>
         @RenderBody()
     </div>
 

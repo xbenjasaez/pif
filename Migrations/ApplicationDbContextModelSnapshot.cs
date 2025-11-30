@@ -134,6 +134,41 @@ namespace BibliotecaVirtualWeb.Migrations
                     b.ToTable("Auditorias");
                 });
 
+            modelBuilder.Entity("BibliotecaVirtualWeb.Models.BackupRegistro", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("Descripcion")
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<bool>("Exitoso")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<DateTime>("FechaCreacion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<string>("NombreArchivo")
+                        .IsRequired()
+                        .HasMaxLength(255)
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<string>("RutaCompleta")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<long>("TamañoBytes")
+                        .HasColumnType("bigint")
+                        .HasColumnName("TamanoBytes");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("backup_registros");
+                });
+
             modelBuilder.Entity("BibliotecaVirtualWeb.Models.Ejemplar", b =>
                 {
                     b.Property<int>("Id")
@@ -264,7 +299,7 @@ namespace BibliotecaVirtualWeb.Migrations
                             Descripcion = "Una obra maestra del realismo mágico que narra la historia de la familia Buendía a lo largo de siete generaciones.",
                             Editorial = "Editorial Sudamericana",
                             Estado = "Disponible",
-                            FechaAgregado = new DateTime(2025, 11, 3, 16, 8, 17, 788, DateTimeKind.Local).AddTicks(336),
+                            FechaAgregado = new DateTime(2025, 11, 4, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(138),
                             ISBN = "978-84-376-0494-7",
                             ProveedorId = 1,
                             Titulo = "Cien años de soledad",
@@ -280,8 +315,8 @@ namespace BibliotecaVirtualWeb.Migrations
                             Descripcion = "Una fábula poética sobre la amistad, el amor y la pérdida de la inocencia.",
                             Editorial = "Reynal & Hitchcock",
                             Estado = "Prestado",
-                            FechaAgregado = new DateTime(2025, 11, 8, 16, 8, 17, 788, DateTimeKind.Local).AddTicks(341),
-                            FechaPrestamo = new DateTime(2025, 11, 23, 16, 8, 17, 788, DateTimeKind.Local).AddTicks(343),
+                            FechaAgregado = new DateTime(2025, 11, 9, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(154),
+                            FechaPrestamo = new DateTime(2025, 11, 24, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(156),
                             ISBN = "978-84-376-0495-4",
                             PrestadoA = "María González",
                             ProveedorId = 1,
@@ -298,11 +333,92 @@ namespace BibliotecaVirtualWeb.Migrations
                             Descripcion = "Un relato fascinante de la evolución de la humanidad desde la aparición del Homo sapiens.",
                             Editorial = "Debate",
                             Estado = "Disponible",
-                            FechaAgregado = new DateTime(2025, 11, 13, 16, 8, 17, 788, DateTimeKind.Local).AddTicks(351),
+                            FechaAgregado = new DateTime(2025, 11, 14, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(176),
                             ISBN = "978-84-376-0496-1",
                             ProveedorId = 2,
                             Titulo = "Sapiens: De animales a dioses",
                             Ubicacion = "Estante C, Fila 1"
+                        });
+                });
+
+            modelBuilder.Entity("BibliotecaVirtualWeb.Models.Logro", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<string>("CodigoInterno")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Color")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)");
+
+                    b.Property<string>("Descripcion")
+                        .IsRequired()
+                        .HasMaxLength(500)
+                        .HasColumnType("varchar(500)");
+
+                    b.Property<string>("Icono")
+                        .IsRequired()
+                        .HasMaxLength(50)
+                        .HasColumnType("varchar(50)");
+
+                    b.Property<string>("Nombre")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("varchar(100)");
+
+                    b.Property<int>("Puntos")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("Logros");
+
+                    b.HasData(
+                        new
+                        {
+                            Id = 1,
+                            CodigoInterno = "PRIMER_PRESTAMO",
+                            Color = "primary",
+                            Descripcion = "Realizar tu primer préstamo",
+                            Icono = "fa-book-reader",
+                            Nombre = "Primeros Pasos",
+                            Puntos = 10
+                        },
+                        new
+                        {
+                            Id = 2,
+                            CodigoInterno = "5_PRESTAMOS",
+                            Color = "info",
+                            Descripcion = "Completar 5 préstamos",
+                            Icono = "fa-book-open",
+                            Nombre = "Lector Constante",
+                            Puntos = 50
+                        },
+                        new
+                        {
+                            Id = 3,
+                            CodigoInterno = "10_PRESTAMOS",
+                            Color = "warning",
+                            Descripcion = "Completar 10 préstamos",
+                            Icono = "fa-crown",
+                            Nombre = "Devorador de Libros",
+                            Puntos = 100
+                        },
+                        new
+                        {
+                            Id = 4,
+                            CodigoInterno = "PUNTUALIDAD_3",
+                            Color = "success",
+                            Descripcion = "Devolver 3 libros a tiempo consecutivos",
+                            Icono = "fa-clock",
+                            Nombre = "Puntualidad Perfecta",
+                            Puntos = 30
                         });
                 });
 
@@ -394,7 +510,7 @@ namespace BibliotecaVirtualWeb.Migrations
                             Id = 1,
                             Contacto = "Juan Pérez",
                             Email = "contacto@fundacion.edu",
-                            FechaRegistro = new DateTime(2025, 10, 29, 16, 8, 17, 788, DateTimeKind.Local).AddTicks(172),
+                            FechaRegistro = new DateTime(2025, 10, 30, 15, 27, 9, 962, DateTimeKind.Local).AddTicks(9992),
                             LibrosProporcionados = 0,
                             Nombre = "Fundación Educativa",
                             Telefono = "+56 2 2345 6789",
@@ -405,7 +521,7 @@ namespace BibliotecaVirtualWeb.Migrations
                             Id = 2,
                             Contacto = "María Silva",
                             Email = "ventas@editorial.com",
-                            FechaRegistro = new DateTime(2025, 11, 8, 16, 8, 17, 788, DateTimeKind.Local).AddTicks(177),
+                            FechaRegistro = new DateTime(2025, 11, 9, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(3),
                             LibrosProporcionados = 0,
                             Nombre = "Editorial Nacional",
                             Telefono = "+56 2 3456 7890",
@@ -484,6 +600,14 @@ namespace BibliotecaVirtualWeb.Migrations
                     b.Property<DateTime>("FechaRegistro")
                         .HasColumnType("datetime(6)");
 
+                    b.Property<string>("Genero")
+                        .HasMaxLength(1)
+                        .HasColumnType("varchar(1)");
+
+                    b.Property<string>("LetraCurso")
+                        .HasMaxLength(1)
+                        .HasColumnType("varchar(1)");
+
                     b.Property<string>("Nombre")
                         .IsRequired()
                         .HasMaxLength(50)
@@ -508,6 +632,13 @@ namespace BibliotecaVirtualWeb.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("varchar(20)");
 
+                    b.Property<string>("TipoUsuario")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("varchar(20)")
+                        .HasDefaultValue("Alumno");
+
                     b.HasKey("Id");
 
                     b.HasIndex("RUT")
@@ -522,12 +653,13 @@ namespace BibliotecaVirtualWeb.Migrations
                             Apellido = "González",
                             Email = "maria.gonzalez@email.com",
                             Estado = "Activo",
-                            FechaRegistro = new DateTime(2025, 11, 13, 16, 8, 17, 788, DateTimeKind.Local).AddTicks(297),
+                            FechaRegistro = new DateTime(2025, 11, 14, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(92),
                             Nombre = "María",
                             PrestamosActivos = 0,
                             PrestamosVencidos = 0,
                             RUT = "12345678-9",
-                            Telefono = "+56 9 1234 5678"
+                            Telefono = "+56 9 1234 5678",
+                            TipoUsuario = "Alumno"
                         },
                         new
                         {
@@ -535,13 +667,38 @@ namespace BibliotecaVirtualWeb.Migrations
                             Apellido = "López",
                             Email = "carlos.lopez@email.com",
                             Estado = "Activo",
-                            FechaRegistro = new DateTime(2025, 11, 18, 16, 8, 17, 788, DateTimeKind.Local).AddTicks(301),
+                            FechaRegistro = new DateTime(2025, 11, 19, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(98),
                             Nombre = "Carlos",
                             PrestamosActivos = 0,
                             PrestamosVencidos = 0,
                             RUT = "87654321-0",
-                            Telefono = "+56 9 8765 4321"
+                            Telefono = "+56 9 8765 4321",
+                            TipoUsuario = "Alumno"
                         });
+                });
+
+            modelBuilder.Entity("BibliotecaVirtualWeb.Models.UsuarioLogro", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("int");
+
+                    b.Property<DateTime>("FechaObtencion")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("LogroId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("UsuarioId")
+                        .HasColumnType("int");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LogroId");
+
+                    b.HasIndex("UsuarioId");
+
+                    b.ToTable("UsuarioLogros");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRole", b =>
@@ -720,6 +877,25 @@ namespace BibliotecaVirtualWeb.Migrations
                     b.Navigation("Usuario");
                 });
 
+            modelBuilder.Entity("BibliotecaVirtualWeb.Models.UsuarioLogro", b =>
+                {
+                    b.HasOne("BibliotecaVirtualWeb.Models.Logro", "Logro")
+                        .WithMany()
+                        .HasForeignKey("LogroId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("BibliotecaVirtualWeb.Models.Usuario", "Usuario")
+                        .WithMany("UsuarioLogros")
+                        .HasForeignKey("UsuarioId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Logro");
+
+                    b.Navigation("Usuario");
+                });
+
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<string>", b =>
                 {
                     b.HasOne("Microsoft.AspNetCore.Identity.IdentityRole", null)
@@ -769,6 +945,11 @@ namespace BibliotecaVirtualWeb.Migrations
                         .HasForeignKey("UserId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+                });
+
+            modelBuilder.Entity("BibliotecaVirtualWeb.Models.Usuario", b =>
+                {
+                    b.Navigation("UsuarioLogros");
                 });
 #pragma warning restore 612, 618
         }
