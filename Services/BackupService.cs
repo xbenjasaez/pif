@@ -294,39 +294,46 @@ namespace BibliotecaVirtualWeb.Services
                     return (false, "mysqldump no encontrado");
                 }
 
+                // Usar --result-file para escribir directo a disco y evitar cargar todo en memoria
+                var args = new StringBuilder();
+                args.Append($"-h {server} -u {user} ");
+                if (!string.IsNullOrEmpty(password))
+                {
+                    args.Append($"-p{password} ");
+                }
+                args.Append("--single-transaction --routines --triggers ");
+                args.Append($"--result-file=\"{outputPath}\" ");
+                args.Append(database);
+
                 var startInfo = new ProcessStartInfo
                 {
                     FileName = mysqldumpPath,
-                    Arguments = $"-h {server} -u {user} -p{password} --single-transaction --routines --triggers {database}",
-                    RedirectStandardOutput = true,
+                    Arguments = args.ToString(),
                     RedirectStandardError = true,
+                    RedirectStandardOutput = false,
                     UseShellExecute = false,
                     CreateNoWindow = true
                 };
 
                 using var process = new Process { StartInfo = startInfo };
-                var output = new StringBuilder();
                 var error = new StringBuilder();
 
-                process.OutputDataReceived += (s, e) => { if (e.Data != null) output.AppendLine(e.Data); };
                 process.ErrorDataReceived += (s, e) => { if (e.Data != null) error.AppendLine(e.Data); };
 
                 process.Start();
-                process.BeginOutputReadLine();
                 process.BeginErrorReadLine();
 
-                // Esperar con timeout de 2 minutos
-                var completed = await Task.Run(() => process.WaitForExit(120000));
+                // Esperar con timeout de 5 minutos por si la base es grande
+                var completed = await Task.Run(() => process.WaitForExit(300000));
                 
                 if (!completed)
                 {
-                    try { process.Kill(); } catch { }
-                    return (false, "Timeout: mysqldump tardó más de 2 minutos");
+                    try { process.Kill(true); } catch { }
+                    return (false, "Timeout: mysqldump tardó más de 5 minutos");
                 }
 
-                if (process.ExitCode == 0 && output.Length > 0)
+                if (process.ExitCode == 0 && File.Exists(outputPath) && new FileInfo(outputPath).Length > 0)
                 {
-                    await File.WriteAllTextAsync(outputPath, output.ToString(), Encoding.UTF8);
                     return (true, "OK");
                 }
 
@@ -340,19 +347,20 @@ namespace BibliotecaVirtualWeb.Services
 
         private async Task GenerarBackupManualAsync(string outputPath, IBackupProgress? progress = null)
         {
-            var sb = new StringBuilder();
-            
-            sb.AppendLine("-- =============================================");
-            sb.AppendLine($"-- Backup de Biblioteca Virtual");
-            sb.AppendLine($"-- Fecha: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
-            sb.AppendLine("-- =============================================");
-            sb.AppendLine();
-            sb.AppendLine("SET FOREIGN_KEY_CHECKS = 0;");
-            sb.AppendLine();
-            sb.AppendLine("-- =============================================");
-            sb.AppendLine("-- ESTRUCTURA DE TABLAS (CREATE TABLE)");
-            sb.AppendLine("-- =============================================");
-            sb.AppendLine();
+            // Escribir directamente al archivo para no saturar memoria
+            await using var writer = new StreamWriter(outputPath, false, Encoding.UTF8);
+
+            await writer.WriteLineAsync("-- =============================================");
+            await writer.WriteLineAsync($"-- Backup de Biblioteca Virtual");
+            await writer.WriteLineAsync($"-- Fecha: {DateTime.Now:yyyy-MM-dd HH:mm:ss}");
+            await writer.WriteLineAsync("-- =============================================");
+            await writer.WriteLineAsync();
+            await writer.WriteLineAsync("SET FOREIGN_KEY_CHECKS = 0;");
+            await writer.WriteLineAsync();
+            await writer.WriteLineAsync("-- =============================================");
+            await writer.WriteLineAsync("-- ESTRUCTURA DE TABLAS (CREATE TABLE)");
+            await writer.WriteLineAsync("-- =============================================");
+            await writer.WriteLineAsync();
 
             // Exportar estructura de tablas
             if (progress != null)
@@ -361,31 +369,23 @@ namespace BibliotecaVirtualWeb.Services
                 progress.Estado = "Exportando estructura de tablas...";
             }
 
-            await ExportarEstructuraTablasAsync(sb, progress);
+            await ExportarEstructuraTablasAsync(writer, progress);
 
-            sb.AppendLine();
-            sb.AppendLine("-- =============================================");
-            sb.AppendLine("-- DATOS DE TABLAS (INSERT)");
-            sb.AppendLine("-- =============================================");
-            sb.AppendLine();
+            await writer.WriteLineAsync();
+            await writer.WriteLineAsync("-- =============================================");
+            await writer.WriteLineAsync("-- DATOS DE TABLAS (INSERT)");
+            await writer.WriteLineAsync("-- =============================================");
+            await writer.WriteLineAsync();
 
             // Exportar datos de todas las tablas
             // Estructura: 0-10%, Datos: 10-90%, Guardar: 90-100%
-            await ExportarDatosTodasTablasAsync(sb, progress);
+            await ExportarDatosTodasTablasAsync(writer, progress);
 
-            sb.AppendLine();
-            sb.AppendLine("SET FOREIGN_KEY_CHECKS = 1;");
-            sb.AppendLine();
-            sb.AppendLine("-- Fin del backup");
+            await writer.WriteLineAsync();
+            await writer.WriteLineAsync("SET FOREIGN_KEY_CHECKS = 1;");
+            await writer.WriteLineAsync();
+            await writer.WriteLineAsync("-- Fin del backup");
 
-            if (progress != null)
-            {
-                progress.Porcentaje = 95;
-                progress.Estado = "Escribiendo archivo...";
-            }
-
-            await File.WriteAllTextAsync(outputPath, sb.ToString(), Encoding.UTF8);
-            
             if (progress != null)
             {
                 progress.Porcentaje = 100;
@@ -393,7 +393,7 @@ namespace BibliotecaVirtualWeb.Services
             }
         }
 
-        private async Task ExportarEstructuraTablasAsync(StringBuilder sb, IBackupProgress? progress)
+        private async Task ExportarEstructuraTablasAsync(StreamWriter writer, IBackupProgress? progress)
         {
             // Obtener todas las tablas de la base de datos dinámicamente
             var connection = _context.Database.GetDbConnection();
@@ -455,10 +455,10 @@ namespace BibliotecaVirtualWeb.Services
                             
                             if (!string.IsNullOrEmpty(createTable))
                             {
-                                sb.AppendLine($"-- Estructura de la tabla: {tabla}");
-                                sb.AppendLine($"DROP TABLE IF EXISTS `{tabla}`;");
-                                sb.AppendLine(createTable + ";");
-                                sb.AppendLine();
+                                await writer.WriteLineAsync($"-- Estructura de la tabla: {tabla}");
+                                await writer.WriteLineAsync($"DROP TABLE IF EXISTS `{tabla}`;");
+                                await writer.WriteLineAsync(createTable + ";");
+                                await writer.WriteLineAsync();
                             }
                         }
                         
@@ -487,7 +487,7 @@ namespace BibliotecaVirtualWeb.Services
             }
         }
 
-        private async Task ExportarDatosTodasTablasAsync(StringBuilder sb, IBackupProgress? progress)
+        private async Task ExportarDatosTodasTablasAsync(StreamWriter writer, IBackupProgress? progress)
         {
             var connection = _context.Database.GetDbConnection();
             var wasOpen = connection.State == System.Data.ConnectionState.Open;
@@ -535,7 +535,7 @@ namespace BibliotecaVirtualWeb.Services
                             progress.Estado = $"Exportando datos de {tabla} ({indice + 1}/{totalTablas})...";
                         }
                         
-                        await ExportarDatosTablaAsync(sb, tabla, connection, progress, indice, totalTablas);
+                        await ExportarDatosTablaAsync(writer, tabla, connection, progress, indice, totalTablas);
                         indice++;
                     }
                     catch
@@ -561,7 +561,7 @@ namespace BibliotecaVirtualWeb.Services
             }
         }
 
-        private async Task ExportarDatosTablaAsync(StringBuilder sb, string tableName, DbConnection connection, IBackupProgress? progress, int indiceTabla, int totalTablas)
+        private async Task ExportarDatosTablaAsync(StreamWriter writer, string tableName, DbConnection connection, IBackupProgress? progress, int indiceTabla, int totalTablas)
         {
             // Obtener conteo de registros
             using var countCommand = connection.CreateCommand();
@@ -570,13 +570,13 @@ namespace BibliotecaVirtualWeb.Services
             
             if (count == 0)
             {
-                sb.AppendLine($"-- Tabla: {tableName} (vacía)");
-                sb.AppendLine();
+                await writer.WriteLineAsync($"-- Tabla: {tableName} (vacía)");
+                await writer.WriteLineAsync();
                 return;
             }
             
-            sb.AppendLine($"-- Tabla: {tableName}");
-            sb.AppendLine($"-- Registros: {count}");
+            await writer.WriteLineAsync($"-- Tabla: {tableName}");
+            await writer.WriteLineAsync($"-- Registros: {count}");
             
             // Obtener nombres de columnas
             var columnas = new List<string>();
@@ -655,7 +655,7 @@ namespace BibliotecaVirtualWeb.Services
                         }
                     }
                     
-                    sb.AppendLine($"INSERT INTO `{tableName}` ({columnasStr}) VALUES ({string.Join(", ", valores)});");
+                    await writer.WriteLineAsync($"INSERT INTO `{tableName}` ({columnasStr}) VALUES ({string.Join(", ", valores)});");
                 }
                 
                 offset += batchSize;
@@ -671,40 +671,7 @@ namespace BibliotecaVirtualWeb.Services
                 await Task.Delay(50);
             }
             
-            sb.AppendLine();
-        }
-
-        private async Task ExportarTablaAsync<T>(StringBuilder sb, string tableName, DbSet<T> dbSet) where T : class
-        {
-            var datos = await dbSet.ToListAsync();
-            if (!datos.Any()) return;
-
-            sb.AppendLine($"-- Tabla: {tableName}");
-            sb.AppendLine($"-- Registros: {datos.Count}");
-            // No se necesita DELETE FROM porque la estructura ya incluye DROP TABLE IF EXISTS
-
-            var propiedades = typeof(T).GetProperties()
-                .Where(p => p.CanRead && !p.GetMethod!.IsVirtual)
-                .ToList();
-
-            var columnas = string.Join(", ", propiedades.Select(p => $"`{p.Name}`"));
-
-            foreach (var item in datos)
-            {
-                var valores = propiedades.Select(p =>
-                {
-                    var valor = p.GetValue(item);
-                    if (valor == null) return "NULL";
-                    if (valor is string s) return $"'{EscapeSql(s)}'";
-                    if (valor is DateTime dt) return $"'{dt:yyyy-MM-dd HH:mm:ss}'";
-                    if (valor is bool b) return b ? "1" : "0";
-                    return valor.ToString();
-                });
-
-                sb.AppendLine($"INSERT INTO `{tableName}` ({columnas}) VALUES ({string.Join(", ", valores)});");
-            }
-
-            sb.AppendLine();
+            await writer.WriteLineAsync();
         }
 
         private string EscapeSql(string value)

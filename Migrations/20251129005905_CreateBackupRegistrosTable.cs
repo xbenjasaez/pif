@@ -20,6 +20,7 @@ namespace BibliotecaVirtualWeb.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4");
             */
 
+            /*
             migrationBuilder.CreateTable(
                 name: "backup_registros",
                 columns: table => new

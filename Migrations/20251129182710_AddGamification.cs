@@ -10,10 +10,14 @@ namespace BibliotecaVirtualWeb.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
+            // Fix for MariaDB 10.4: Use CHANGE COLUMN instead of RENAME COLUMN
+            migrationBuilder.Sql("ALTER TABLE `backup_registros` CHANGE COLUMN `TamañoBytes` `TamanoBytes` bigint NOT NULL");
+            /*
             migrationBuilder.RenameColumn(
                 name: "TamañoBytes",
                 table: "backup_registros",
                 newName: "TamanoBytes");
+            */
 
             migrationBuilder.AlterColumn<string>(
                 name: "LetraCurso",
