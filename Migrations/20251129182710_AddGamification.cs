@@ -10,14 +10,25 @@ namespace BibliotecaVirtualWeb.Migrations
     {
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            // Fix for MariaDB 10.4: Use CHANGE COLUMN instead of RENAME COLUMN
-            migrationBuilder.Sql("ALTER TABLE `backup_registros` CHANGE COLUMN `TamañoBytes` `TamanoBytes` bigint NOT NULL");
-            /*
-            migrationBuilder.RenameColumn(
-                name: "TamañoBytes",
-                table: "backup_registros",
-                newName: "TamanoBytes");
-            */
+            // Solo intenta renombrar si la columna con tilde existe (evita fallar en DBs creadas con el script que ya usa TamanoBytes).
+            migrationBuilder.Sql(@"
+SET @rename_stmt := (
+    SELECT IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'backup_registros'
+              AND column_name = 'TamañoBytes' COLLATE utf8mb4_bin
+        ),
+        'ALTER TABLE `backup_registros` CHANGE COLUMN `TamañoBytes` `TamanoBytes` bigint NOT NULL',
+        'SELECT 0'
+    )
+);
+PREPARE stmt FROM @rename_stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+");
 
             migrationBuilder.AlterColumn<string>(
                 name: "LetraCurso",
@@ -31,66 +42,52 @@ namespace BibliotecaVirtualWeb.Migrations
                 .Annotation("MySql:CharSet", "utf8mb4")
                 .OldAnnotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.AddColumn<string>(
-                name: "TipoUsuario",
-                table: "Usuarios",
-                type: "varchar(20)",
-                maxLength: 20,
-                nullable: false,
-                defaultValue: "Alumno")
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // Agregar TipoUsuario solo si no existe (evita duplicado en entornos ya ajustados).
+            migrationBuilder.Sql(@"
+SET @add_tipo_usuario := (
+    SELECT IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'Usuarios'
+              AND column_name = 'TipoUsuario' COLLATE utf8mb4_bin
+        ),
+        'SELECT 0',
+        'ALTER TABLE `Usuarios` ADD `TipoUsuario` varchar(20) CHARACTER SET utf8mb4 NOT NULL DEFAULT ''Alumno'''
+    )
+);
+PREPARE stmt FROM @add_tipo_usuario;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+");
 
-            migrationBuilder.CreateTable(
-                name: "Logros",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    Nombre = table.Column<string>(type: "varchar(100)", maxLength: 100, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Descripcion = table.Column<string>(type: "varchar(500)", maxLength: 500, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Icono = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Color = table.Column<string>(type: "varchar(20)", maxLength: 20, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    CodigoInterno = table.Column<string>(type: "varchar(50)", maxLength: 50, nullable: false)
-                        .Annotation("MySql:CharSet", "utf8mb4"),
-                    Puntos = table.Column<int>(type: "int", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_Logros", x => x.Id);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // Crear Logros solo si no existe
+            migrationBuilder.Sql(@"
+CREATE TABLE IF NOT EXISTS `Logros` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `Nombre` varchar(100) CHARACTER SET utf8mb4 NOT NULL,
+    `Descripcion` varchar(500) CHARACTER SET utf8mb4 NOT NULL,
+    `Icono` varchar(50) CHARACTER SET utf8mb4 NOT NULL,
+    `Color` varchar(20) CHARACTER SET utf8mb4 NOT NULL,
+    `CodigoInterno` varchar(50) CHARACTER SET utf8mb4 NOT NULL,
+    `Puntos` int NOT NULL,
+    CONSTRAINT `PK_Logros` PRIMARY KEY (`Id`)
+) CHARACTER SET=utf8mb4;
+");
 
-            migrationBuilder.CreateTable(
-                name: "UsuarioLogros",
-                columns: table => new
-                {
-                    Id = table.Column<int>(type: "int", nullable: false)
-                        .Annotation("MySql:ValueGenerationStrategy", MySqlValueGenerationStrategy.IdentityColumn),
-                    UsuarioId = table.Column<int>(type: "int", nullable: false),
-                    LogroId = table.Column<int>(type: "int", nullable: false),
-                    FechaObtencion = table.Column<DateTime>(type: "datetime(6)", nullable: false)
-                },
-                constraints: table =>
-                {
-                    table.PrimaryKey("PK_UsuarioLogros", x => x.Id);
-                    table.ForeignKey(
-                        name: "FK_UsuarioLogros_Logros_LogroId",
-                        column: x => x.LogroId,
-                        principalTable: "Logros",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                    table.ForeignKey(
-                        name: "FK_UsuarioLogros_Usuarios_UsuarioId",
-                        column: x => x.UsuarioId,
-                        principalTable: "Usuarios",
-                        principalColumn: "Id",
-                        onDelete: ReferentialAction.Cascade);
-                })
-                .Annotation("MySql:CharSet", "utf8mb4");
+            // Crear UsuarioLogros solo si no existe
+            migrationBuilder.Sql(@"
+CREATE TABLE IF NOT EXISTS `UsuarioLogros` (
+    `Id` int NOT NULL AUTO_INCREMENT,
+    `UsuarioId` int NOT NULL,
+    `LogroId` int NOT NULL,
+    `FechaObtencion` datetime(6) NOT NULL,
+    CONSTRAINT `PK_UsuarioLogros` PRIMARY KEY (`Id`),
+    CONSTRAINT `FK_UsuarioLogros_Logros_LogroId` FOREIGN KEY (`LogroId`) REFERENCES `Logros` (`Id`) ON DELETE CASCADE,
+    CONSTRAINT `FK_UsuarioLogros_Usuarios_UsuarioId` FOREIGN KEY (`UsuarioId`) REFERENCES `Usuarios` (`Id`) ON DELETE CASCADE
+) CHARACTER SET=utf8mb4;
+");
 
             migrationBuilder.UpdateData(
                 table: "Libros",
@@ -113,16 +110,17 @@ namespace BibliotecaVirtualWeb.Migrations
                 column: "FechaAgregado",
                 value: new DateTime(2025, 11, 14, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(176));
 
-            migrationBuilder.InsertData(
-                table: "Logros",
-                columns: new[] { "Id", "CodigoInterno", "Color", "Descripcion", "Icono", "Nombre", "Puntos" },
-                values: new object[,]
-                {
-                    { 1, "PRIMER_PRESTAMO", "primary", "Realizar tu primer préstamo", "fa-book-reader", "Primeros Pasos", 10 },
-                    { 2, "5_PRESTAMOS", "info", "Completar 5 préstamos", "fa-book-open", "Lector Constante", 50 },
-                    { 3, "10_PRESTAMOS", "warning", "Completar 10 préstamos", "fa-crown", "Devorador de Libros", 100 },
-                    { 4, "PUNTUALIDAD_3", "success", "Devolver 3 libros a tiempo consecutivos", "fa-clock", "Puntualidad Perfecta", 30 }
-                });
+            // Seed solo si la tabla Logros está vacía (idempotente)
+            migrationBuilder.Sql(@"
+INSERT INTO `Logros` (`Id`, `CodigoInterno`, `Color`, `Descripcion`, `Icono`, `Nombre`, `Puntos`)
+SELECT * FROM (
+    SELECT 1, 'PRIMER_PRESTAMO', 'primary', 'Realizar tu primer préstamo', 'fa-book-reader', 'Primeros Pasos', 10 UNION ALL
+    SELECT 2, '5_PRESTAMOS', 'info', 'Completar 5 préstamos', 'fa-book-open', 'Lector Constante', 50 UNION ALL
+    SELECT 3, '10_PRESTAMOS', 'warning', 'Completar 10 préstamos', 'fa-crown', 'Devorador de Libros', 100 UNION ALL
+    SELECT 4, 'PUNTUALIDAD_3', 'success', 'Devolver 3 libros a tiempo consecutivos', 'fa-clock', 'Puntualidad Perfecta', 30
+) AS seed
+WHERE NOT EXISTS (SELECT 1 FROM `Logros` LIMIT 1);
+");
 
             migrationBuilder.UpdateData(
                 table: "Proveedores",
@@ -152,33 +150,122 @@ namespace BibliotecaVirtualWeb.Migrations
                 columns: new[] { "FechaRegistro", "LetraCurso", "TipoUsuario" },
                 values: new object[] { new DateTime(2025, 11, 19, 15, 27, 9, 963, DateTimeKind.Local).AddTicks(98), null, "Alumno" });
 
-            migrationBuilder.CreateIndex(
-                name: "IX_UsuarioLogros_LogroId",
-                table: "UsuarioLogros",
-                column: "LogroId");
+            // Índices idempotentes: crea solo si no existen
+            migrationBuilder.Sql(@"
+SET @idx1 := (
+    SELECT IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.statistics
+            WHERE table_schema = DATABASE()
+              AND table_name = 'UsuarioLogros'
+              AND index_name = 'IX_UsuarioLogros_LogroId'
+        ),
+        'SELECT 0',
+        'CREATE INDEX `IX_UsuarioLogros_LogroId` ON `UsuarioLogros` (`LogroId`)'
+    )
+);
+PREPARE stmt FROM @idx1;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+");
 
-            migrationBuilder.CreateIndex(
-                name: "IX_UsuarioLogros_UsuarioId",
-                table: "UsuarioLogros",
-                column: "UsuarioId");
+            migrationBuilder.Sql(@"
+SET @idx2 := (
+    SELECT IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.statistics
+            WHERE table_schema = DATABASE()
+              AND table_name = 'UsuarioLogros'
+              AND index_name = 'IX_UsuarioLogros_UsuarioId'
+        ),
+        'SELECT 0',
+        'CREATE INDEX `IX_UsuarioLogros_UsuarioId` ON `UsuarioLogros` (`UsuarioId`)'
+    )
+);
+PREPARE stmt FROM @idx2;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+");
         }
 
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
-                name: "UsuarioLogros");
+            // Dropear tablas solo si existen (idempotente)
+            migrationBuilder.Sql(@"
+SET @drop_ul := (
+    SELECT IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name = 'UsuarioLogros'
+        ),
+        'DROP TABLE `UsuarioLogros`',
+        'SELECT 0'
+    )
+);
+PREPARE stmt FROM @drop_ul;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+");
 
-            migrationBuilder.DropTable(
-                name: "Logros");
+            migrationBuilder.Sql(@"
+SET @drop_logros := (
+    SELECT IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.tables
+            WHERE table_schema = DATABASE()
+              AND table_name = 'Logros'
+        ),
+        'DROP TABLE `Logros`',
+        'SELECT 0'
+    )
+);
+PREPARE stmt FROM @drop_logros;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+");
 
-            migrationBuilder.DropColumn(
-                name: "TipoUsuario",
-                table: "Usuarios");
+            migrationBuilder.Sql(@"
+SET @drop_tipo_usuario := (
+    SELECT IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'Usuarios'
+              AND column_name = 'TipoUsuario' COLLATE utf8mb4_bin
+        ),
+        'ALTER TABLE `Usuarios` DROP COLUMN `TipoUsuario`',
+        'SELECT 0'
+    )
+);
+PREPARE stmt FROM @drop_tipo_usuario;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+");
 
-            migrationBuilder.RenameColumn(
-                name: "TamanoBytes",
-                table: "backup_registros",
-                newName: "TamañoBytes");
+            migrationBuilder.Sql(@"
+SET @rename_stmt := (
+    SELECT IF(
+        EXISTS(
+            SELECT 1
+            FROM information_schema.columns
+            WHERE table_schema = DATABASE()
+              AND table_name = 'backup_registros'
+              AND column_name = 'TamanoBytes' COLLATE utf8mb4_bin
+        ),
+        'ALTER TABLE `backup_registros` CHANGE COLUMN `TamanoBytes` `TamañoBytes` bigint NOT NULL',
+        'SELECT 0'
+    )
+);
+PREPARE stmt FROM @rename_stmt;
+EXECUTE stmt;
+DEALLOCATE PREPARE stmt;
+");
 
             migrationBuilder.UpdateData(
                 table: "Usuarios",
