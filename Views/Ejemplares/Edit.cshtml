@@ -25,6 +25,12 @@
             <div class="alert alert-info mb-4">
                 <i class="fas fa-book me-2"></i>
                 <strong>Libro:</strong> @Model.Libro.Titulo
+                @if (!string.IsNullOrWhiteSpace(Model.Libro.Ubicacion))
+                {
+                    <span class="badge bg-light text-muted border ms-2">
+                        <i class="fas fa-map-marker-alt me-1 text-primary"></i>Ubicación del libro: @Model.Libro.Ubicacion
+                    </span>
+                }
             </div>
         }
 
@@ -64,8 +70,39 @@
                 <small class="form-text text-muted">
                     <i class="fas fa-map-marker-alt me-1"></i>
                     Indica dónde se encuentra físicamente este ejemplar en la biblioteca.
+                    Si quieres que siga la ubicación del libro, déjalo vacío; si necesitas
+                    una ubicación personalizada, ingrésala aquí.
                 </small>
                 <span asp-validation-for="Ubicacion" class="text-danger"></span>
+            </div>
+
+            <div class="row mb-3">
+                <div class="col-md-6">
+                    <label class="form-label">Prestado a</label>
+                    @if (!string.IsNullOrWhiteSpace(Model.PrestadoA))
+                    {
+                        <div class="form-control-plaintext text-danger">
+                            <i class="fas fa-user me-1"></i>@Model.PrestadoA
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-control-plaintext text-muted fst-italic">Sin préstamo activo</div>
+                    }
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Fecha de préstamo</label>
+                    @if (Model.FechaPrestamo.HasValue)
+                    {
+                        <div class="form-control-plaintext">
+                            <i class="fas fa-clock me-1"></i>@Model.FechaPrestamo.Value.ToString("dd/MM/yyyy HH:mm")
+                        </div>
+                    }
+                    else
+                    {
+                        <div class="form-control-plaintext text-muted fst-italic">N/A</div>
+                    }
+                </div>
             </div>
 
             <div class="mb-3">
@@ -99,37 +136,16 @@
                 <span asp-validation-for="Estado" class="text-danger"></span>
             </div>
 
-            <!-- Modal para detalles de Deteriorado/En Reparación -->
-            <div class="modal fade" id="detallesEstadoModal" tabindex="-1" aria-labelledby="detallesEstadoModalLabel" aria-hidden="true">
-                <div class="modal-dialog">
-                    <div class="modal-content">
-                        <div class="modal-header">
-                            <h5 class="modal-title" id="detallesEstadoModalLabel">
-                                <i class="fas fa-info-circle me-2"></i>Detalles del Estado
-                            </h5>
-                            <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-                        </div>
-                        <div class="modal-body">
-                            <div class="mb-3">
-                                <label for="detallesEstado" class="form-label">
-                                    <span id="detallesLabel">Describe los detalles:</span>
-                                </label>
-                                <textarea id="detallesEstado" class="form-control" rows="4" 
-                                          placeholder="Ej: Páginas sueltas, tapa despegada, etc."></textarea>
-                                <small class="form-text text-muted">
-                                    <i class="fas fa-info-circle me-1"></i>
-                                    Esta información se guardará en las notas del ejemplar.
-                                </small>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                            <button type="button" class="btn btn-primary" id="confirmarEstadoBtn">
-                                <i class="fas fa-check me-1"></i>Confirmar
-                            </button>
-                        </div>
-                    </div>
-                </div>
+            <div class="mb-3 d-none" id="detallesEstadoBlock">
+                <label for="detallesEstado" class="form-label">
+                    <span id="detallesLabel">Describe el estado:</span>
+                </label>
+                <textarea id="detallesEstado" class="form-control" rows="3"
+                          placeholder="Ej: Páginas sueltas, tapa despegada, etc."></textarea>
+                <small class="form-text text-muted">
+                    <i class="fas fa-info-circle me-1"></i>
+                    Esta información se agregará a las notas automáticamente al guardar.
+                </small>
             </div>
 
             <div class="mb-3">
@@ -158,13 +174,10 @@
             const notasTextarea = document.getElementById('notasTextarea');
             const tienePrestamoActivo = @(prestamoActivo != null ? "true" : "false");
             const estadoActual = '@Model.Estado';
-            let estadoAnterior = estadoActual;
-            let estadoPendiente = null;
-            
-            const detallesModal = new bootstrap.Modal(document.getElementById('detallesEstadoModal'));
+            const detallesBlock = document.getElementById('detallesEstadoBlock');
             const detallesTextarea = document.getElementById('detallesEstado');
             const detallesLabel = document.getElementById('detallesLabel');
-            const confirmarBtn = document.getElementById('confirmarEstadoBtn');
+            let estadoAnterior = estadoActual;
             
             // Estados que requieren detalles
             const estadosConDetalles = ['Deteriorado', 'En Reparacion'];
@@ -181,11 +194,9 @@
                         return;
                     }
                     
-                    // Si el nuevo estado requiere detalles, abrir modal
+                    // Si el nuevo estado requiere detalles, mostrar bloque inline
                     if (estadosConDetalles.includes(nuevoEstado)) {
-                        estadoPendiente = nuevoEstado;
-                        
-                        // Configurar el modal según el estado
+                        // Configurar el bloque según el estado
                         if (nuevoEstado === 'Deteriorado') {
                             detallesLabel.textContent = 'Describe el deterioro:';
                             detallesTextarea.placeholder = 'Ej: Páginas sueltas, tapa despegada, manchas de agua, etc.';
@@ -194,62 +205,46 @@
                             detallesTextarea.placeholder = 'Ej: Reparación de encuadernación, restauración de páginas, etc.';
                         }
                         
-                        // Limpiar el textarea del modal
+                        // Limpiar el textarea
                         detallesTextarea.value = '';
-                        
-                        // Mostrar modal
-                        detallesModal.show();
-                        
-                        // Restaurar el estado anterior mientras se decide
-                        this.value = estadoAnterior;
-                    } else {
-                        // Si no requiere detalles, actualizar estado anterior
+                        detallesBlock.classList.remove('d-none');
                         estadoAnterior = nuevoEstado;
+                        detallesTextarea.focus();
+                    } else {
+                        // Si no requiere detalles, ocultar bloque y actualizar estado anterior
+                        estadoAnterior = nuevoEstado;
+                        detallesBlock.classList.add('d-none');
+                        detallesTextarea.value = '';
                     }
                 });
             }
             
-            // Confirmar cambio de estado con detalles
-            confirmarBtn.addEventListener('click', function () {
-                if (!estadoPendiente) return;
-                
-                const detalles = detallesTextarea.value.trim();
-                
-                if (detalles === '') {
-                    alert('⚠️ Por favor, ingrese los detalles del estado.');
-                    detallesTextarea.focus();
-                    return;
-                }
-                
-                // Actualizar el estado
-                estadoSelect.value = estadoPendiente;
-                estadoAnterior = estadoPendiente;
-                
-                // Agregar detalles a las notas
-                const fecha = new Date().toLocaleDateString('es-ES');
-                const prefijo = estadoPendiente === 'Deteriorado' 
-                    ? `[Deteriorado - ${fecha}] ` 
-                    : `[En Reparación - ${fecha}] `;
-                
-                const notasActuales = notasTextarea.value.trim();
-                const nuevaNota = prefijo + detalles;
-                
-                if (notasActuales) {
-                    notasTextarea.value = notasActuales + '\n\n' + nuevaNota;
-                } else {
-                    notasTextarea.value = nuevaNota;
-                }
-                
-                // Cerrar modal
-                detallesModal.hide();
-                estadoPendiente = null;
-            });
-            
-            // Limpiar estado pendiente si se cancela el modal
-            document.getElementById('detallesEstadoModal').addEventListener('hidden.bs.modal', function () {
-                if (estadoPendiente) {
-                    estadoSelect.value = estadoAnterior;
-                    estadoPendiente = null;
+            // Al enviar el formulario, si requiere detalles, validar y anexar a notas
+            const form = document.querySelector('form');
+            form.addEventListener('submit', function (e) {
+                const estadoActualSel = estadoSelect.value;
+                if (estadosConDetalles.includes(estadoActualSel)) {
+                    const detalles = detallesTextarea.value.trim();
+                    if (!detalles) {
+                        e.preventDefault();
+                        alert('⚠️ Por favor, ingresa los detalles del estado.');
+                        detallesTextarea.focus();
+                        return;
+                    }
+
+                    const fecha = new Date().toLocaleDateString('es-ES');
+                    const prefijo = estadoActualSel === 'Deteriorado'
+                        ? `[Deteriorado - ${fecha}] `
+                        : `[En Reparación - ${fecha}] `;
+
+                    const notasActuales = notasTextarea.value.trim();
+                    const nuevaNota = prefijo + detalles;
+
+                    if (notasActuales) {
+                        notasTextarea.value = notasActuales + '\n\n' + nuevaNota;
+                    } else {
+                        notasTextarea.value = nuevaNota;
+                    }
                 }
             });
         });

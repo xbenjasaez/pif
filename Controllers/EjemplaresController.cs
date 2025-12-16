@@ -215,6 +215,8 @@ namespace BibliotecaVirtualWeb.Controllers
         // GET: Ejemplares/Create?libroId=5
         public async Task<IActionResult> Create(int? libroId)
         {
+            Ejemplar modelo = new Ejemplar();
+
             if (libroId.HasValue)
             {
                 var libro = await _context.Libros.FindAsync(libroId.Value);
@@ -224,6 +226,9 @@ namespace BibliotecaVirtualWeb.Controllers
                 }
                 ViewBag.LibroId = libroId.Value;
                 ViewBag.LibroTitulo = libro.Titulo;
+                // Prefill ubicación con la del libro para ahorrar tipeo
+                modelo.LibroId = libro.Id;
+                modelo.Ubicacion = libro.Ubicacion;
             }
             else
             {
@@ -233,7 +238,7 @@ namespace BibliotecaVirtualWeb.Controllers
                     .ToListAsync();
             }
 
-            return View();
+            return View(modelo);
         }
 
         // POST: Ejemplares/Create
@@ -346,13 +351,14 @@ namespace BibliotecaVirtualWeb.Controllers
 
             ViewBag.LibroId = libroId.Value;
             ViewBag.LibroTitulo = libro.Titulo;
+            ViewBag.LibroUbicacion = string.IsNullOrWhiteSpace(libro.Ubicacion) ? null : libro.Ubicacion;
             return View();
         }
 
         // POST: Ejemplares/CrearMultiple
         [HttpPost]
         [ValidateAntiForgeryToken]
-        public async Task<IActionResult> CrearMultiple(int libroId, int cantidad, string? prefijoCodigo)
+        public async Task<IActionResult> CrearMultiple(int libroId, int cantidad, string? ubicacion)
         {
             if (cantidad <= 0 || cantidad > 100)
             {
@@ -369,44 +375,23 @@ namespace BibliotecaVirtualWeb.Controllers
             var ejemplaresCreados = 0;
             var errores = new List<string>();
             var nuevosEjemplares = new List<Ejemplar>();
-            var prefijoNumerico = string.Concat((prefijoCodigo ?? string.Empty).Where(char.IsDigit));
-            var usarPrefijo = !string.IsNullOrWhiteSpace(prefijoNumerico);
+            var ubicacionDestino = !string.IsNullOrWhiteSpace(ubicacion)
+                ? ubicacion.Trim()
+                : string.IsNullOrWhiteSpace(libro.Ubicacion) ? null : libro.Ubicacion.Trim();
 
             for (int i = 0; i < cantidad; i++)
             {
                 try
                 {
-                    string codigoBarras;
-
-                    if (usarPrefijo)
-                    {
-                        var baseInput = $"{prefijoNumerico}{(i + 1):D6}";
-                        if (!Ean13Helper.TryNormalize(baseInput, out codigoBarras, out var errorPrefijo))
-                        {
-                            errores.Add($"Prefijo inválido para el ejemplar {i + 1}: {errorPrefijo}");
-                            continue;
-                        }
-                    }
-                    else
-                    {
-                        codigoBarras = await GenerarCodigoBarrasUnico();
-                    }
-
-                    // Verificar que el código no exista
-                    var existe = await _context.Ejemplares
-                        .AnyAsync(e => e.CodigoBarras == codigoBarras);
-                    
-                    if (existe)
-                    {
-                        codigoBarras = await GenerarCodigoBarrasUnico();
-                    }
+                    var codigoBarras = await GenerarCodigoBarrasUnico();
 
                     var ejemplar = new Ejemplar
                     {
                         LibroId = libroId,
                         CodigoBarras = codigoBarras,
                         Estado = "Disponible",
-                        FechaAgregado = DateTime.Now
+                        FechaAgregado = DateTime.Now,
+                        Ubicacion = ubicacionDestino
                     };
 
                     _context.Add(ejemplar);
@@ -642,6 +627,7 @@ namespace BibliotecaVirtualWeb.Controllers
                     ejemplarOriginal.CodigoBarras = ejemplar.CodigoBarras;
                     ejemplarOriginal.Estado = ejemplar.Estado;
                     ejemplarOriginal.Notas = ejemplar.Notas;
+                    ejemplarOriginal.Ubicacion = ejemplar.Ubicacion;
 
                     _context.Entry(ejemplarOriginal).State = EntityState.Modified;
                     await _context.SaveChangesAsync();

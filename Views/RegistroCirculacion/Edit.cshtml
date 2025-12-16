@@ -22,9 +22,10 @@
                 </h6>
             </div>
             <div class="card-body">
-                <form asp-action="Edit" method="post">
+                <form asp-action="Edit" asp-route-id="@Model.Id" method="post">
                     <div asp-validation-summary="ModelOnly" class="alert alert-danger" role="alert"></div>
                     <input type="hidden" asp-for="Id" />
+                    <input type="hidden" asp-for="EjemplarId" />
                     <input type="hidden" asp-for="LibroId" />
                     <input type="hidden" asp-for="UsuarioId" />
 
@@ -42,14 +43,18 @@
                     <div class="row mb-3">
                         <div class="col-md-6">
                             <label asp-for="FechaPrestamo" class="form-label"></label>
-                            <input asp-for="FechaPrestamo" type="date" class="form-control" 
-                                   value="@Model.FechaPrestamo.ToString("yyyy-MM-dd")" />
+                            <input asp-for="FechaPrestamo"
+                                   type="date"
+                                   class="form-control"
+                                   asp-format="{0:yyyy-MM-dd}" />
                             <span asp-validation-for="FechaPrestamo" class="text-danger"></span>
                         </div>
                         <div class="col-md-6">
                             <label asp-for="FechaVencimiento" class="form-label"></label>
-                            <input asp-for="FechaVencimiento" type="date" class="form-control" 
-                                   value="@Model.FechaVencimiento.ToString("yyyy-MM-dd")" />
+                            <input asp-for="FechaVencimiento"
+                                   type="date"
+                                   class="form-control"
+                                   asp-format="{0:yyyy-MM-dd}" />
                             <span asp-validation-for="FechaVencimiento" class="text-danger"></span>
                             <small class="form-text text-muted">Puedes modificar la fecha de vencimiento aquí</small>
                         </div>
@@ -66,15 +71,10 @@
                         </div>
                         <div class="col-md-6">
                             <label asp-for="FechaDevolucion" class="form-label"></label>
-                            @if (Model.FechaDevolucion.HasValue)
-                            {
-                                <input asp-for="FechaDevolucion" type="datetime-local" class="form-control" 
-                                       value="@Model.FechaDevolucion.Value.ToString("yyyy-MM-ddTHH:mm")" />
-                            }
-                            else
-                            {
-                                <input asp-for="FechaDevolucion" type="datetime-local" class="form-control" />
-                            }
+                            <input asp-for="FechaDevolucion"
+                                   type="datetime-local"
+                                   class="form-control"
+                                   asp-format="{0:yyyy-MM-ddTHH:mm}" />
                             <span asp-validation-for="FechaDevolucion" class="text-danger"></span>
                             <small class="form-text text-muted">Solo necesario si el estado es "Devuelto"</small>
                         </div>
@@ -93,7 +93,7 @@
         </div>
     </div>
 
-    <div class="col-lg-4">
+    <div class="col-lg-4 position-sticky" style="top: 90px; align-self: flex-start;">
         <div class="card shadow">
             <div class="card-header py-3 bg-info text-white">
                 <h6 class="m-0 font-weight-bold">

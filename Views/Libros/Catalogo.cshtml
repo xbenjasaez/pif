@@ -171,6 +171,12 @@
                             <div>
                                 <h5 class="mb-1" id="detalleLibroTitulo"></h5>
                                 <p class="text-muted mb-0" id="detalleLibroAutor"></p>
+                                <div class="d-flex flex-wrap gap-2 mt-2 align-items-center">
+                                    <small class="text-muted fw-semibold">
+                                        <i class="fas fa-map-marker-alt me-1"></i>Ubicaciones
+                                    </small>
+                                    <div id="detalleUbicaciones" class="d-flex flex-wrap gap-1"></div>
+                                </div>
                             </div>
                             <div class="d-flex gap-2">
                                 <a href="#" id="btnVerLibro" class="btn btn-outline-info btn-sm">
@@ -250,6 +256,7 @@
             const resumenTotal = document.getElementById('resumenTotal');
             const resumenDisponibles = document.getElementById('resumenDisponibles');
             const resumenPrestados = document.getElementById('resumenPrestados');
+            const detalleUbicaciones = document.getElementById('detalleUbicaciones');
 
             let libroSeleccionadoId = null;
 
@@ -308,10 +315,22 @@
                             const total = ejemplares.length;
                             const disponibles = ejemplares.filter(e => e.estado === 'Disponible' || e.estado === 'Deteriorado').length;
                             const prestados = ejemplares.filter(e => e.estado === 'Prestado').length;
+                            const ubicaciones = [...new Set(ejemplares
+                                .map(e => e.ubicacion)
+                                .filter(u => !!u))]
+                                .slice(0, 5); // mostrar las principales
                             
                             resumenTotal.textContent = total;
                             resumenDisponibles.textContent = disponibles;
                             resumenPrestados.textContent = prestados;
+
+                            if (ubicaciones.length > 0) {
+                                detalleUbicaciones.innerHTML = ubicaciones
+                                    .map(u => `<span class="badge bg-light text-muted border"><i class="fas fa-map-pin me-1"></i>${escapeHtml(u)}</span>`)
+                                    .join('');
+                            } else {
+                                detalleUbicaciones.innerHTML = '<span class="text-muted fst-italic">Sin ubicación</span>';
+                            }
 
                             if (ejemplares.length === 0) {
                                 tablaEjemplares.innerHTML = '';

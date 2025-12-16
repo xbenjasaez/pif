@@ -243,9 +243,14 @@ namespace BibliotecaVirtualWeb.Controllers
                     && p.Estado == "Activo" 
                     && p.FechaVencimiento < DateTime.Now);
 
-            if (tieneVencidos)
+            if (tieneVencidos && request?.ForzarPrestamo != true)
             {
-                return Json(new { success = false, message = $"El usuario {usuario.Nombre} tiene préstamos vencidos. Debe devolverlos antes de solicitar nuevos préstamos." });
+                return Json(new
+                {
+                    success = false,
+                    requireOverride = true,
+                    message = $"El usuario {usuario.Nombre} tiene préstamos vencidos. ¿Confirmas el préstamo de todas formas?"
+                });
             }
 
             // Crear el préstamo
@@ -1042,6 +1047,7 @@ namespace BibliotecaVirtualWeb.Controllers
         {
             public string CodigoBarras { get; set; } = string.Empty;
             public string RutUsuario { get; set; } = string.Empty;
+            public bool ForzarPrestamo { get; set; } = false;
         }
 
     }

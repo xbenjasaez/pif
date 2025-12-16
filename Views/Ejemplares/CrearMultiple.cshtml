@@ -13,9 +13,24 @@
 
 <div class="card shadow">
     <div class="card-body">
-        <div class="alert alert-info mb-4">
-            <i class="fas fa-book me-2"></i>
-            <strong>Libro:</strong> @libroTitulo
+        <div class="alert alert-info mb-4 d-flex flex-wrap align-items-center gap-3">
+            <div>
+                <i class="fas fa-book me-2"></i>
+                <strong>Libro:</strong> @libroTitulo
+            </div>
+            @if (!string.IsNullOrWhiteSpace(ViewBag.LibroUbicacion as string))
+            {
+                <div class="badge bg-light text-muted border">
+                    <i class="fas fa-map-marker-alt me-1 text-primary"></i>
+                    Ubicación: @ViewBag.LibroUbicacion
+                </div>
+            }
+            else
+            {
+                <div class="text-muted small">
+                    <i class="fas fa-map-marker-alt me-1"></i>Sin ubicación asignada
+                </div>
+            }
         </div>
 
         <form asp-action="CrearMultiple" method="post">
@@ -31,10 +46,17 @@
             </div>
 
             <div class="mb-3">
-                <label for="prefijoCodigo" class="form-label">Prefijo del Código de Barras (Opcional)</label>
-                <input type="text" name="prefijoCodigo" id="prefijoCodigo" class="form-control" maxlength="20" placeholder="Ej: LIB-2024" />
+                <label for="ubicacion" class="form-label">Ubicación para los nuevos ejemplares</label>
+                <input type="text"
+                       name="ubicacion"
+                       id="ubicacion"
+                       class="form-control"
+                       maxlength="100"
+                       value="@(ViewBag.LibroUbicacion ?? "")"
+                       placeholder="Ej: A-5" />
                 <small class="form-text text-muted">
-                    Si proporcionas un prefijo, los códigos serán: PREFIJO000001, PREFIJO000002, etc.
+                    <i class="fas fa-map-marker-alt me-1"></i>
+                    Se usa la ubicación del libro por defecto; puedes cambiarla para esta creación en lote.
                 </small>
             </div>
 

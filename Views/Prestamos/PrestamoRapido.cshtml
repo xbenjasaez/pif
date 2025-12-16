@@ -110,6 +110,21 @@
 
                 <div class="alert alert-success mt-4 d-none" id="resultadoExito"></div>
                 <div class="alert alert-danger mt-4 d-none" id="resultadoError"></div>
+                <div class="alert alert-warning mt-4 d-none" id="alertaMoroso">
+                    <div class="d-flex align-items-start">
+                        <i class="fas fa-user-clock fa-lg me-2 text-warning"></i>
+                        <div>
+                            <div id="textoMoroso" class="fw-semibold mb-2"></div>
+                            <p class="mb-2 small">Se recomienda NO prestar hasta que regularice. Si confirmas, se registrará igual.</p>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-secondary" id="btnCancelarMoroso">Cancelar</button>
+                                <button type="button" class="btn btn-sm btn-primary" id="btnConfirmarMoroso">
+                                    <i class="fas fa-check me-1"></i>Sí, confirmar
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
 
                 <div class="border rounded p-3 mt-4 d-none" id="detallePrestamo">
                     <h6 class="text-success"><i class="fas fa-check-circle me-2"></i>Último préstamo</h6>
@@ -350,6 +365,12 @@
                     });
             }
 
+            let forzarPrestamo = false;
+            const alertaMoroso = document.getElementById('alertaMoroso');
+            const textoMoroso = document.getElementById('textoMoroso');
+            const btnConfirmarMoroso = document.getElementById('btnConfirmarMoroso');
+            const btnCancelarMoroso = document.getElementById('btnCancelarMoroso');
+
             function crearPrestamo() {
                 const rutUsuario = usuarioInput.value.trim();
                 if (!rutUsuario) {
@@ -365,23 +386,31 @@
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json',
-                        'X-CSRF-TOKEN': token
+                        'X-CSRF-TOKEN': token,
+                        'RequestVerificationToken': token
                     },
                     body: JSON.stringify({
                         codigoBarras: ejemplarSeleccionado.codigoBarras,
-                        rutUsuario: rutUsuario
+                        rutUsuario: rutUsuario,
+                        forzarPrestamo: forzarPrestamo
                     })
                 })
                 .then(response => response.json())
                 .then(data => {
                     btnCrearPrestamo.disabled = false;
-                    resultadoExito.classList.add('d-none');
+                        resultadoExito.classList.add('d-none');
 
                     if (data.success) {
+                        forzarPrestamo = false; // reset
                         mostrarMensaje(resultadoExito, data.message);
                         mostrarDetallePrestamo(data.data);
                         actualizarHistorial(data.data);
                         incrementarPrestamosHoy();
+                    } else if (data.requireOverride) {
+                        textoMoroso.textContent = data.message || 'El usuario tiene préstamos vencidos.';
+                        alertaMoroso.classList.remove('d-none');
+                        // Mantener visible, no auto-ocultar
+                        // no forzamos hasta confirmar
                     } else {
                         mostrarMensaje(resultadoError, data.message || 'No se pudo crear el préstamo.');
                     }
@@ -391,6 +420,19 @@
                     mostrarMensaje(resultadoError, 'Error al crear el préstamo.');
                 });
             }
+
+            btnConfirmarMoroso.addEventListener('click', function () {
+                alertaMoroso.classList.add('d-none');
+                forzarPrestamo = true;
+                btnConfirmarMoroso.disabled = true;
+                crearPrestamo();
+                setTimeout(() => btnConfirmarMoroso.disabled = false, 1200);
+            });
+
+            btnCancelarMoroso.addEventListener('click', function () {
+                alertaMoroso.classList.add('d-none');
+                forzarPrestamo = false;
+            });
 
             function mostrarDetallePrestamo(data) {
                 detalleLibro.textContent = data.libro || 'Sin título';

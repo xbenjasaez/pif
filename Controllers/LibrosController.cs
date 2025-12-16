@@ -146,12 +146,13 @@ namespace BibliotecaVirtualWeb.Controllers
                 }
             }
 
+            string? codigoNormalizado = null;
             if (!string.IsNullOrWhiteSpace(libro.CodigoBarras))
             {
-                if (Ean13Helper.TryNormalize(libro.CodigoBarras, out var codigoNormalizado, out var errorCodigo))
+                if (Ean13Helper.TryNormalize(libro.CodigoBarras, out var codigoGenerado, out var errorCodigo))
                 {
                     var codigoDuplicado = await _context.Libros
-                        .AnyAsync(l => l.CodigoBarras == codigoNormalizado && l.Id != libro.Id);
+                        .AnyAsync(l => l.CodigoBarras == codigoGenerado && l.Id != libro.Id);
 
                     if (codigoDuplicado)
                     {
@@ -159,7 +160,7 @@ namespace BibliotecaVirtualWeb.Controllers
                     }
                     else
                     {
-                        libro.CodigoBarras = codigoNormalizado;
+                        codigoNormalizado = codigoGenerado;
                     }
                 }
                 else
@@ -167,17 +168,14 @@ namespace BibliotecaVirtualWeb.Controllers
                     ModelState.AddModelError("CodigoBarras", errorCodigo);
                 }
             }
-            else
-            {
-                ModelState.AddModelError("CodigoBarras", "El código de barras es obligatorio.");
-            }
 
             if (ModelState.IsValid)
             {
                 try
                 {
                     libro.FechaAgregado = DateTime.Now;
-                    libro.CodigoBarras = await GenerarCodigoBarras();
+                    // Usar el código ingresado si se proporcionó y fue validado, si no generar uno nuevo
+                    libro.CodigoBarras = codigoNormalizado ?? await GenerarCodigoBarras();
                     _context.Add(libro);
                     await _context.SaveChangesAsync();
                     TempData["SuccessMessage"] = "Libro agregado correctamente.";
@@ -260,6 +258,7 @@ namespace BibliotecaVirtualWeb.Controllers
 
             // Guardar el estado original para comparación posterior
             var estadoOriginal = libroOriginal.Estado;
+            var ubicacionOriginal = libroOriginal.Ubicacion;
 
             // Verificar si se está cambiando de "Prestado" a "Disponible"
             if (estadoOriginal == "Prestado" && libro.Estado == "Disponible")
@@ -336,6 +335,25 @@ namespace BibliotecaVirtualWeb.Controllers
                     }
                     
                     _context.Entry(libroOriginal).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+
+                    // Propagar cambio de ubicación a ejemplares que no tengan una ubicación personalizada
+                    if (ubicacionOriginal != libro.Ubicacion)
+                    {
+                        var ejemplares = await _context.Ejemplares
+                            .Where(e => e.LibroId == id)
+                            .ToListAsync();
+
+                        foreach (var ej in ejemplares)
+                        {
+                            // Solo se actualizan los que estaban sin ubicación o con la ubicación anterior
+                            if (string.IsNullOrWhiteSpace(ej.Ubicacion) || ej.Ubicacion == ubicacionOriginal)
+                            {
+                                ej.Ubicacion = libro.Ubicacion;
+                                _context.Entry(ej).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+                            }
+                        }
+                    }
+
                     await _context.SaveChangesAsync();
                     
                     // Verificar si cambió de Prestado a Disponible

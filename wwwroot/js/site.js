@@ -48,9 +48,9 @@ $(document).ready(function() {
         }
     }
 
-    // Auto-hide alerts después de 15 segundos (excepto las permanentes)
+    // Auto-hide solo para alertas marcadas con .alert-autoclose (excepto las permanentes)
     setTimeout(function() {
-        $('.alert').not('.alert-permanent').fadeOut('slow');
+        $('.alert.alert-autoclose').not('.alert-permanent').fadeOut('slow');
     }, 15000);
 
     // Confirmación para eliminar elementos

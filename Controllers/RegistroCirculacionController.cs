@@ -163,122 +163,103 @@ namespace BibliotecaVirtualWeb.Controllers
                 return NotFound();
             }
 
-            if (ModelState.IsValid)
-            {
-                try
-                {
-                    // Validar que la fecha de préstamo no sea futura
-                    if (prestamo.FechaPrestamo > DateTime.Now)
-                    {
-                        ModelState.AddModelError("FechaPrestamo", "La fecha de préstamo no puede ser futura.");
-                        var prestamoTemp = await _context.Prestamos
-                            .Include(p => p.Ejemplar)
-                                .ThenInclude(e => e.Libro)
-                            .Include(p => p.Usuario)
-                            .FirstOrDefaultAsync(p => p.Id == id);
-                        TempData["ErrorMessage"] = "La fecha de préstamo no puede ser futura.";
-                        return View(prestamoTemp ?? prestamo);
-                    }
-
-                    // Validar que la fecha de vencimiento sea posterior a la fecha de préstamo
-                    if (prestamo.FechaVencimiento < prestamo.FechaPrestamo)
-                    {
-                        ModelState.AddModelError("FechaVencimiento", "La fecha de vencimiento no puede ser anterior a la fecha de préstamo.");
-                        var prestamoTemp = await _context.Prestamos
-                            .Include(p => p.Ejemplar)
-                                .ThenInclude(e => e.Libro)
-                            .Include(p => p.Usuario)
-                            .FirstOrDefaultAsync(p => p.Id == id);
-                        TempData["ErrorMessage"] = "La fecha de vencimiento no puede ser anterior a la fecha de préstamo.";
-                        return View(prestamoTemp ?? prestamo);
-                    }
-
-                    // Validar que la fecha de devolución no sea anterior a la fecha de préstamo
-                    if (prestamo.FechaDevolucion.HasValue && prestamo.FechaDevolucion.Value < prestamo.FechaPrestamo)
-                    {
-                        ModelState.AddModelError("FechaDevolucion", "La fecha de devolución no puede ser anterior a la fecha de préstamo.");
-                        var prestamoTemp = await _context.Prestamos
-                            .Include(p => p.Ejemplar)
-                                .ThenInclude(e => e.Libro)
-                            .Include(p => p.Usuario)
-                            .FirstOrDefaultAsync(p => p.Id == id);
-                        TempData["ErrorMessage"] = "La fecha de devolución no puede ser anterior a la fecha de préstamo.";
-                        return View(prestamoTemp ?? prestamo);
-                    }
-
-                    // Si se cambia el estado a Devuelto, actualizar el ejemplar
-                    var prestamoOriginal = await _context.Prestamos
-                        .Include(p => p.Ejemplar)
-                        .Include(p => p.Usuario)
-                        .FirstOrDefaultAsync(p => p.Id == id);
-
-                    if (prestamoOriginal != null)
-                    {
-                        // Si cambió de Activo a Devuelto
-                        if (prestamoOriginal.Estado == "Activo" && prestamo.Estado == "Devuelto")
-                        {
-                            if (prestamoOriginal.EjemplarId > 0 && prestamoOriginal.Ejemplar != null)
-                            {
-                                var ejemplar = prestamoOriginal.Ejemplar;
-                                ejemplar.Estado = "Disponible";
-                                ejemplar.PrestadoA = null;
-                                ejemplar.FechaPrestamo = null;
-                                _context.Entry(ejemplar).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-                            }
-
-                            var usuario = prestamoOriginal.Usuario;
-                            if (usuario.PrestamosActivos > 0)
-                            {
-                                usuario.PrestamosActivos--;
-                            }
-                            _context.Entry(usuario).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-
-                            prestamo.FechaDevolucion = prestamo.FechaDevolucion ?? DateTime.Now;
-                        }
-                        // Si cambió de Devuelto a Activo (caso poco común pero posible)
-                        else if (prestamoOriginal.Estado == "Devuelto" && prestamo.Estado == "Activo")
-                        {
-                            if (prestamoOriginal.EjemplarId > 0 && prestamoOriginal.Ejemplar != null)
-                            {
-                                var ejemplar = prestamoOriginal.Ejemplar;
-                                ejemplar.Estado = "Prestado";
-                                ejemplar.PrestadoA = prestamoOriginal.Usuario?.NombreCompleto ?? "Usuario desconocido";
-                                ejemplar.FechaPrestamo = prestamo.FechaPrestamo;
-                                _context.Entry(ejemplar).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-                            }
-
-                            var usuario = prestamoOriginal.Usuario;
-                            usuario.PrestamosActivos++;
-                            _context.Entry(usuario).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-
-                            prestamo.FechaDevolucion = null;
-                        }
-                    }
-
-                    _context.Entry(prestamo).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
-                    await _context.SaveChangesAsync();
-                    TempData["SuccessMessage"] = "Registro de circulación actualizado correctamente.";
-                    return RedirectToAction(nameof(Index));
-                }
-                catch (DbUpdateConcurrencyException)
-                {
-                    if (!PrestamoExists(prestamo.Id))
-                    {
-                        return NotFound();
-                    }
-                    else
-                    {
-                        throw;
-                    }
-                }
-            }
-
-            var prestamoError = await _context.Prestamos
+            var prestamoOriginal = await _context.Prestamos
                 .Include(p => p.Ejemplar)
                     .ThenInclude(e => e.Libro)
                 .Include(p => p.Usuario)
                 .FirstOrDefaultAsync(p => p.Id == id);
-            return View(prestamoError ?? prestamo);
+
+            if (prestamoOriginal == null)
+            {
+                return NotFound();
+            }
+
+            // Validaciones de fechas
+            if (prestamo.FechaPrestamo > DateTime.Now)
+            {
+                ModelState.AddModelError("FechaPrestamo", "La fecha de préstamo no puede ser futura.");
+                TempData["ErrorMessage"] = "La fecha de préstamo no puede ser futura.";
+                return View(prestamoOriginal);
+            }
+
+            if (prestamo.FechaVencimiento < prestamo.FechaPrestamo)
+            {
+                ModelState.AddModelError("FechaVencimiento", "La fecha de vencimiento no puede ser anterior a la fecha de préstamo.");
+                TempData["ErrorMessage"] = "La fecha de vencimiento no puede ser anterior a la fecha de préstamo.";
+                return View(prestamoOriginal);
+            }
+
+            if (prestamo.FechaDevolucion.HasValue && prestamo.FechaDevolucion.Value < prestamo.FechaPrestamo)
+            {
+                ModelState.AddModelError("FechaDevolucion", "La fecha de devolución no puede ser anterior a la fecha de préstamo.");
+                TempData["ErrorMessage"] = "La fecha de devolución no puede ser anterior a la fecha de préstamo.";
+                return View(prestamoOriginal);
+            }
+
+            var estadoAnterior = prestamoOriginal.Estado;
+
+            // Actualizar campos base
+            prestamoOriginal.FechaPrestamo = prestamo.FechaPrestamo;
+            prestamoOriginal.FechaVencimiento = prestamo.FechaVencimiento;
+            prestamoOriginal.FechaDevolucion = prestamo.FechaDevolucion;
+            prestamoOriginal.Estado = prestamo.Estado;
+
+            // Transiciones de estado solo si cambió
+            if (estadoAnterior == "Activo" && prestamo.Estado == "Devuelto")
+            {
+                if (prestamoOriginal.EjemplarId > 0 && prestamoOriginal.Ejemplar != null)
+                {
+                    var ejemplar = prestamoOriginal.Ejemplar;
+                    ejemplar.Estado = "Disponible";
+                    ejemplar.PrestadoA = null;
+                    ejemplar.FechaPrestamo = null;
+                    _context.Entry(ejemplar).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+                }
+
+                var usuario = prestamoOriginal.Usuario;
+                if (usuario.PrestamosActivos > 0)
+                {
+                    usuario.PrestamosActivos--;
+                }
+                _context.Entry(usuario).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+
+                prestamoOriginal.FechaDevolucion = prestamo.FechaDevolucion ?? DateTime.Now;
+            }
+            else if (estadoAnterior == "Devuelto" && prestamo.Estado == "Activo")
+            {
+                if (prestamoOriginal.EjemplarId > 0 && prestamoOriginal.Ejemplar != null)
+                {
+                    var ejemplar = prestamoOriginal.Ejemplar;
+                    ejemplar.Estado = "Prestado";
+                    ejemplar.PrestadoA = prestamoOriginal.Usuario?.NombreCompleto ?? "Usuario desconocido";
+                    ejemplar.FechaPrestamo = prestamoOriginal.FechaPrestamo;
+                    _context.Entry(ejemplar).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+                }
+
+                var usuario = prestamoOriginal.Usuario;
+                usuario.PrestamosActivos++;
+                _context.Entry(usuario).State = Microsoft.EntityFrameworkCore.EntityState.Modified;
+
+                prestamoOriginal.FechaDevolucion = null;
+            }
+
+            try
+            {
+                await _context.SaveChangesAsync();
+                TempData["SuccessMessage"] = "Registro de circulación actualizado correctamente.";
+                return RedirectToAction(nameof(Index));
+            }
+            catch (DbUpdateConcurrencyException)
+            {
+                if (!PrestamoExists(prestamoOriginal.Id))
+                {
+                    return NotFound();
+                }
+                else
+                {
+                    throw;
+                }
+            }
         }
 
         // GET: RegistroCirculacion/Details/5
