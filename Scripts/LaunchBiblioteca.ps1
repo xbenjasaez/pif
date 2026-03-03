@@ -1,4 +1,7 @@
 param(
+    # Ruta base de XAMPP. Por defecto se intenta usar C:\xampp,
+    # pero más abajo se ajusta automáticamente si se encuentra una carpeta "xampp"
+    # junto al sistema (pensado para entregas portables en pendrive).
     [string]$XamppPath = "C:\xampp",
     [int]$MysqlPort = 3306,
     [switch]$SkipApache,
@@ -79,6 +82,14 @@ function Stop-XamppScript([string]$scriptName) {
 $repoRoot   = Resolve-Path (Join-Path $PSScriptRoot "..")
 $publishDir = Join-Path $repoRoot "bin\Release\net6.0\win-x64\publish"
 $appExe     = Join-Path $publishDir "BibliotecaVirtualWeb.exe"
+
+# Intentar detectar XAMPP de forma portable:
+# 1) Usar el valor pasado por parámetro (por defecto C:\xampp)
+# 2) Si no existe, buscar una carpeta "xampp" al lado del sistema (por ejemplo en un pendrive)
+$portableXampp = Join-Path (Resolve-Path (Join-Path $repoRoot "..")) "xampp"
+if (-not (Test-Path $XamppPath) -and (Test-Path $portableXampp)) {
+    $XamppPath = $portableXampp
+}
 
 try {
     Write-Step "=== Biblioteca Virtual - Lanzador ===" ([ConsoleColor]::White)
